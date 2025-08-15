@@ -1,6 +1,6 @@
 // LoginForm.js
 import React, { useState } from 'react';
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import api from "../../lib/axios.js";
 import './Login.css'
 

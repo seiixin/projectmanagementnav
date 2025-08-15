@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import Table from "react-bootstrap/Table";
 import Button from "react-bootstrap/Button";
 import api from '../../lib/axios.js';
-import {  useNavigate } from "react-router";
+import {  useNavigate } from "react-router-dom";
 
 const LandParcelList = () => {
     const navigate = useNavigate();

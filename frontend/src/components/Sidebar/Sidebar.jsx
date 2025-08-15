@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Collapse } from 'react-bootstrap';
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
 import './Sidebar.css';
 
 const Sidebar = () => {

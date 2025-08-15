@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../lib/axios.js";
-import {  useNavigate } from "react-router";
+import {  useNavigate } from "react-router-dom";
 
 const Parcel = () => {
   const navigate = useNavigate();
