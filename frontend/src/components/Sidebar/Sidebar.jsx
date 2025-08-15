@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import './Sidebar.css';
 
 const Sidebar = () => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(window.innerWidth >= 768); // OPEN if desktop
   const [submenuOpen, setSubmenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -14,10 +15,18 @@ const Sidebar = () => {
       const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       setIsOpen(!mobile); // If desktop → open, if mobile → closed
+      
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+    
   }, []);
+
+  const handleLogout = async (e) => {
+    e.preventDefault();
+    localStorage.removeItem("token");
+    window.location = "/";  
+  };
 
   return (
     <>
@@ -88,7 +97,7 @@ const Sidebar = () => {
 
             <Collapse in={submenuOpen}>
               <div id="submenu" className="ms-4">
-                <a className="nav-link" href="#proj1">Project 1</a>
+                <Link to="/landparcellist" className="nav-link">Land Parcel </Link>
                 <a className="nav-link" href="#proj2">Project 2</a>
                 <a className="nav-link" href="#proj3">Project 3</a>
               </div>
@@ -98,7 +107,7 @@ const Sidebar = () => {
               <i className="bi bi-gear me-2"></i>
               {isOpen && 'Settings'}
             </a>
-            <a className="nav-link mt-auto" href="#logout">
+            <a href="#" className="nav-link mt-auto" onClick={(e) => { e.preventDefault(); handleLogout(e); }}>
               <i className="bi bi-box-arrow-right me-2"></i>
               {isOpen && 'Logout'}
             </a>

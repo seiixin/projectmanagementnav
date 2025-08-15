@@ -5,6 +5,8 @@ import cors from 'cors'
 import { database } from './config/database.js';
 import alamedaRoutes from './routes/alamedaRoute.js'
 import ibaanRoutes from './routes/ibaanRoute.js'
+import landParcelRoutes from './routes/landParcelRoute.js'
+import userRoutes from './routes/userRoute.js'
 
 dotenv.config();
 
@@ -25,6 +27,8 @@ console.log('✅ Connected to Database successfully!');
 //API
 app.use("/api/alameda", alamedaRoutes);
 app.use("/api/ibaan", ibaanRoutes);
+app.use("/api/landparcel", landParcelRoutes);
+app.use("/api/user", userRoutes);
 
 // Start server
 app.listen(port, () => {
