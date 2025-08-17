@@ -50,7 +50,7 @@ const Alameda = () => {
     const fetchAlameda = async () => {
       try {             
         const ParcelId = localStorage.getItem("ParcelId");
-          console.log(ParcelId)
+        localStorage.setItem("isParcel", true);
         if(ParcelId !== null) {
             const res = await api.get("/alameda/" + ParcelId);
             setParcel(res.data);

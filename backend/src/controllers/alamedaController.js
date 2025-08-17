@@ -63,9 +63,9 @@ export async function search(req, res) {
     let value = req.params.value;
     const [data] = await database.execute('SELECT * FROM alameda WHERE parcelid like (?) or claimant like (?) or barangayna like (?)', [value,value,value]);
     if (data.length === 0) {
-      return res.status(404).json({ error: "Data not found" });
+      return res.json({ ID: 0, message: 'Data not found.'});
     }
-    res.json(data[0]);
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -10,32 +10,49 @@ const Parcel = () => {
   const [parcel, setParcel] = useState(null);
 
   const handleSearch = async () => {
-    console.log(`Searching for: ${searchTerm} in ${location}`);
-    let res = "";
-    if (location === "ibaan") {
-       res = await api.get("/ibaan/search/"+ searchTerm);
-    } else {
-      res = await api.get("/alameda/search/"+ searchTerm);
+    try {
+      let res = "";
+      if (location === "ibaan") {
+        res = await api.get("/ibaan/search/"+ searchTerm);
+      } else {
+        res = await api.get("/alameda/search/"+ searchTerm);
+      }
+      
+      if(res.data.ID === 0) {
+        alert(res.data.message);
+        setResults([]);
+      } else {
+        const dataArray = Array.isArray(res.data) ? res.data : [res.data];
+        setResults(dataArray);
+        localStorage.setItem("results", JSON.stringify(dataArray));  
+      }
+      
+    }  catch (err) {
+    console.log(err);
     }
-    setResults([res.data]);
-    const dataArray = Array.isArray(res.data) ? res.data : [res.data];
-
-      setResults(dataArray);
-      localStorage.setItem("results", JSON.stringify(dataArray));
-      const savedResults = JSON.parse(localStorage.getItem("results") || "[]");
   };
 
   useEffect(() => {
-    localStorage.removeItem("ParcelId");
-    const searchTerm = localStorage.getItem("searchTerm");
-    const location = localStorage.getItem("location");
-    const results = localStorage.getItem("results");
-    setSearchTerm(searchTerm);
-    setLocation(location);
-    //setResults(results);
+    const isParcel = localStorage.getItem("isParcel") === "true";
+    if(isParcel) {
+      localStorage.removeItem("ParcelId");
+      const searchTerm = localStorage.getItem("searchTerm");
+      const location = localStorage.getItem("location");
+      const results = localStorage.getItem("results");
+      setSearchTerm(searchTerm);
+      setLocation(location);
+      let parsedResults = [];
+      if (results && results !== "undefined" && results !== "") {
+        try {
+          parsedResults = JSON.parse(results);
+          setResults(parsedResults)
+        } catch (err) {
+          console.error("Failed to parse results:", results, err);
+        }
+      }
+    }
+    localStorage.setItem("isParcel", false);
 
-    
-    console.log(results)
   },[]);
 
   const handleEdit = (parcel) => {

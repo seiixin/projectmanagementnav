@@ -36,6 +36,7 @@ const Ibaan = ({ initialData }) => {
     const fetchIbaan = async () => {
       try {             
         const ParcelId = localStorage.getItem("ParcelId");
+        localStorage.setItem("isParcel", true);
           console.log(ParcelId)
         if(ParcelId !== null) {
             const res = await api.get("/ibaan/" + ParcelId);
