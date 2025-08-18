@@ -99,9 +99,8 @@ const Sidebar = () => {
 
             <Collapse in={submenuOpen}>
               <div id="submenu" className="ms-4">
-                <Link to="/landparcellist" className="nav-link">Land Parcel </Link>
-                <a className="nav-link" href="#proj2">Project 2</a>
-                <a className="nav-link" href="#proj3">Project 3</a>
+                <Link to="/landparcellist" className="nav-link">Land Parcels </Link>
+                <Link to="/buildinglist" className="nav-link">Buildings </Link>
               </div>
             </Collapse>
 

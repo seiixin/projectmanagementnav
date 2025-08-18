@@ -5,16 +5,16 @@ import Button from "react-bootstrap/Button";
 import api from '../../lib/axios.js';
 import {  useNavigate } from "react-router-dom";
 
-const LandParcelList = () => {
+const BuildingList = () => {
     const navigate = useNavigate();
-  const [parcels, setParcels] = useState([]);
+  const [buildings, setBuildings] = useState([]);
 
   useEffect(() => {
     const fetchLandParcel = async () => {
         try {             
-            const res = await api.get("/landparcel");
-            setParcels(res.data);
-             localStorage.removeItem("parcelID");
+            const res = await api.get("/building");
+            setBuildings(res.data);
+            localStorage.removeItem("buildingNum");
         } catch (error) {
             console.log(error)
             console.log("error fetching data")
@@ -23,51 +23,45 @@ const LandParcelList = () => {
     fetchLandParcel();
   }, []);
 
-  const handleEdit = (parcel) => {
-    let parcelID = parcel.parcelID;
-    localStorage.setItem("parcelID", parcelID);
-    navigate("/landparcel");
+  const handleEdit = (building) => {
+    let buildingNum = building.building_num;
+    localStorage.setItem("buildingNum", buildingNum);
+    navigate("/building");
   };
 
   const handleAdd = () => {
-   
-      navigate("/landparcel");
-  
+      navigate("/building");
   };
 
   return (
     <div className="container mt-4">
-      <h2>Land Parcel List</h2>
+      <h2>Building List</h2>
         <button className="btn btn-primary" onClick={handleAdd}>
             Add New
         </button><br/><br/>
-      {parcels.length > 0 ? (
+      {buildings.length > 0 ? (
       <table className="table table-striped table-bordered table-hover table-responsive">
         <thead>
           <tr>
-            <th>Parcel ID</th>
-
-            <th>Street Address</th>
-            <th>Barangay</th>
-            <th>Municipality</th>
-            <th>Zip Code</th>
-
+            <th>Building Number</th>
+            <th>Building Name</th>
+            <th>Building Use Type</th>
+            <th>Building Type</th>
             <th>Actions</th> {/* New column for buttons */}
           </tr>
         </thead>
         <tbody>
-          {parcels.map((parcel) => (
-            <tr key={parcel.parcelID}>
-              <td>{parcel.parcelID}</td>
-              <td>{parcel.StreetAddress}</td>
-              <td>{parcel.Barangay}</td>
-              <td>{parcel.Municipality}</td>
-              <td>{parcel.ZipCode}</td>
+          {buildings.map((building) => (
+            <tr key={building.building_num}>
+              <td>{building.building_num}</td>
+              <td>{building.buildingName}</td>
+              <td>{building.buildingUseType}</td>
+              <td>{building.buildingType}</td>
               <td>
                 <Button
                   variant="primary"
                   size="sm"
-                  onClick={() => handleEdit(parcel)}
+                  onClick={() => handleEdit(building)}
                 >
                   Edit
                 </Button>
@@ -83,4 +77,4 @@ const LandParcelList = () => {
   );
 }
 
-export default LandParcelList;
+export default BuildingList;

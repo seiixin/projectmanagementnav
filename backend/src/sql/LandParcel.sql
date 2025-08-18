@@ -1,12 +1,13 @@
-CREATE TABLE LandParcel ( 
+CREATE TABLE landparcel ( 
 	parcelID BIGINT PRIMARY KEY AUTO_INCREMENT, 
 	improvement BOOLEAN, 
 	totalValue DOUBLE, 
-	StreetAddress TEXT, 
-	Barangay TEXT, 
-	Municipality TEXT, 
+	StreetAddress VARCHAR(255), 
+	Barangay VARCHAR(255), 
+	Municipality VARCHAR(255), 
 	ZipCode INT, 
 	areaSize DOUBLE, 
-	propertyType TEXT, 
-	actualLandUse TEXT ) 
+	propertyType VARCHAR(255), 
+	actualLandUse VARCHAR(255) ) 
 AUTO_INCREMENT = 1000000;
+commit;

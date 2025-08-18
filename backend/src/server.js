@@ -7,6 +7,7 @@ import alamedaRoutes from './routes/alamedaRoute.js'
 import ibaanRoutes from './routes/ibaanRoute.js'
 import landParcelRoutes from './routes/landParcelRoute.js'
 import userRoutes from './routes/userRoute.js'
+import buildingRoutes from './routes/buildingRoutes.js'
 
 dotenv.config();
 
@@ -29,6 +30,7 @@ app.use("/api/alameda", alamedaRoutes);
 app.use("/api/ibaan", ibaanRoutes);
 app.use("/api/landparcel", landParcelRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/building", buildingRoutes);
 
 // Start server
 app.listen(port, () => {

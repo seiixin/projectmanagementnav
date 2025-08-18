@@ -10,37 +10,39 @@ export async function getAll (req, res) {
 }
 
 export async function addNew (req, res) {
+  const data = req.body;
   try {
-const {
-    improvement,
-    totalValue,
-    StreetAddress,
-    Barangay,
-    Municipality,
-    ZipCode,
-    areaSize,
-    propertyType,
-    actualLandUse
-  } = req.body;
+    const {
+      improvement,
+      totalValue,
+      StreetAddress,
+      Barangay,
+      Municipality,
+      ZipCode,
+      areaSize,
+      propertyType,
+      actualLandUse
+    } = req.body;
 
-  const sql = `INSERT INTO LandParcel (improvement, totalValue, StreetAddress, Barangay, Municipality, ZipCode, areaSize, propertyType, actualLandUse)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const sql = `INSERT INTO LandParcel (improvement, totalValue, StreetAddress, Barangay, Municipality, ZipCode, areaSize, propertyType, actualLandUse)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
-  database.query(sql,[improvement, totalValue, StreetAddress, Barangay, Municipality, ZipCode, areaSize, propertyType, actualLandUse],
-    (err, result) => {
-      if (err) {
-        console.error('Error inserting data:', err);
-        return res.status(500).json({ error: 'Database insert failed' });
+    database.query(sql,[improvement, totalValue, StreetAddress, Barangay, Municipality, ZipCode, areaSize, propertyType, actualLandUse],
+      (err, result) => {
+        if (err) {
+          console.error('Error inserting data:', err);
+          return res.status(500).json({ error: 'Database insert failed' });
+        }
+        res.json({ message: 'LandParcel added successfully', parcelID: result.insertId });
       }
-      res.json({ message: 'LandParcel added successfully', parcelID: result.insertId });
-    }
-  );
+    );
+    res.json(data[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 }
 
-export async function getById (req, res) {
+export async function getById(req, res) {
   try {
     const [data] = await database.execute('SELECT * FROM landparcel WHERE parcelid = ?', [req.params.id]);
     if (data.length === 0) {

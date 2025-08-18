@@ -19,7 +19,7 @@ const LandParcel = () => {
   });
 
   useEffect(() => {
-    const fetchIbaan = async () => {
+    const fetchLandParcel = async () => {
       try {             
         const parcelID = localStorage.getItem("parcelID");
         if(parcelID !== null) {
@@ -31,7 +31,7 @@ const LandParcel = () => {
         console.log("error fetching data")
       } 
     }
-    fetchIbaan();
+    fetchLandParcel();
   },[]);
 
   const handleChange = (e) => {
@@ -49,12 +49,11 @@ const LandParcel = () => {
         await api.put(`/landparcel/${parcelID}`, parcel);
         alert("Parcel updated successfully!");
         localStorage.removeItem("parcelID");
-        navigate("/landparcellist");
     } else {
-        const res = await api.post("landparcel", parcel);
+        await api.post("/landparcel", parcel);
         alert("Parcel saved successfully!");
-        navigate("/landparcellist");
     }
+    navigate("/landparcellist");
   };
 
   return (
