@@ -4,62 +4,60 @@ import Button from "react-bootstrap/Button";
 import api from "../../lib/axios.js";
 import { useNavigate } from "react-router-dom";
 
-const BuildingList = () => {
+const TaxList = () => {
   const navigate = useNavigate();
-  const [buildings, setBuildings] = useState([]);
+  const [taxes, setTaxes] = useState([]);
 
   useEffect(() => {
-    const fetchBuildings = async () => {
+    const fetchTaxes = async () => {
       try {
-        const res = await api.get("/building");
-        setBuildings(res.data);
-        localStorage.removeItem("buildingNum");
+        const res = await api.get("/tax");
+        setTaxes(res.data);
+        localStorage.removeItem("taxId");
       } catch (error) {
         console.log("error fetching data:", error);
       }
     };
-    fetchBuildings();
+    fetchTaxes();
   }, []);
 
-  const handleEdit = (building) => {
-    localStorage.setItem("buildingNum", building.building_num);
-    navigate("/building");
+  const handleEdit = (tax) => {
+    localStorage.setItem("taxId", tax.id);
+    navigate("/taxform");
   };
 
   const handleAdd = () => {
-    navigate("/building");
+    navigate("/taxform");
   };
 
   return (
     <div className="container mt-4">
-      <h2>Building List</h2>
+      <h2>Tax List</h2>
       <Button variant="primary" onClick={handleAdd} className="mb-3">
         Add New
       </Button>
 
-      {buildings.length > 0 ? (
+      {taxes.length > 0 ? (
         <Table striped bordered hover responsive>
           <thead>
             <tr>
-              <th>Building Number</th>
-              <th>Building Name</th>
-              <th>Building Use Type</th>
-              <th>Building Type</th>
+              <th>ARP/TD No.</th>
+              <th>Account No.</th>
+              <th>Owner’s Name</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {buildings.map((building) => (
-              <tr key={building.building_num}>
-                <td>{building.building_num}</td>
-                <td>{building.buildingName}</td>
-                <td>{building.buildingUseType}</td>
-                <td>{building.buildingType}</td>
+            {taxes.map((tax) => (
+              <tr key={tax.id}>
+                <td>{tax.arpNo}</td>
+                <td>{tax.accountNo}</td>
+                <td>{tax.ownerName}</td>
                 <td>
                   <Button
                     variant="primary"
                     size="sm"
-                    onClick={() => handleEdit(building)}
+                    onClick={() => handleEdit(tax)}
                   >
                     Edit
                   </Button>
@@ -75,4 +73,4 @@ const BuildingList = () => {
   );
 };
 
-export default BuildingList;
+export default TaxList;

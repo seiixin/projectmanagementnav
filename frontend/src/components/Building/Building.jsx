@@ -20,9 +20,8 @@ const Building = () => {
         if(buildingNum !== null) {
             const res = await api.get("/building/" + buildingNum);
             setForm(res.data);
-            console.log(res.data)
         }
-             } catch (error) {
+     } catch (error) {
         console.log(error)
         console.log("error fetching data")
       } 

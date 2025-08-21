@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {  useNavigate } from "react-router-dom";
+import { normalizeDate } from '../../lib/utils.js';
 import api from '../../lib/axios.js';
 import "bootstrap/dist/css/bootstrap.min.css";
 
@@ -37,10 +38,13 @@ const Ibaan = ({ initialData }) => {
       try {             
         const ParcelId = localStorage.getItem("ParcelId");
         localStorage.setItem("isParcel", true);
-          console.log(ParcelId)
+
         if(ParcelId !== null) {
             const res = await api.get("/ibaan/" + ParcelId);
-            setParcel(res.data);
+            const parcelData = { ...res.data };
+            parcelData.Due_Date = normalizeDate(parcelData.Due_Date);
+            parcelData.Date_paid = normalizeDate(parcelData.Date_paid);
+            setParcel(parcelData);
         }
              } catch (error) {
         console.log(error)

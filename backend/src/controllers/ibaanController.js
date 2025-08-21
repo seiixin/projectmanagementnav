@@ -1,4 +1,5 @@
 import { database } from '../config/database.js';
+import { formatDate } from '../lib/utils.js';
 
 export async function getAll (req, res) {
   try {
@@ -38,8 +39,8 @@ export async function editById (req, res) {
       data.SurveyId, data.BlockNumber, data.LotNumber, data.Area,
       data.Claimant, data.TiePointId, data.TiePointNa, data.SurveyPlan, data.BarangayNa,
       data.Coordinate, data.XI, data.YI, data.LongitudeI, data.LatitudeI, data.LengthI,
-      data.AreaI, data.VersionI, data.tax_ID, data.Tax_Amount, data.Due_Date,
-      data.AmountPaid, data.Date_paid,
+      data.AreaI, data.VersionI, data.tax_ID, data.Tax_Amount, formatDate(data.Due_Date),
+      data.AmountPaid, formatDate(data.Date_paid),
       id
     ], (err, result) => {
       if (err) {

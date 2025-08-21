@@ -8,6 +8,7 @@ import ibaanRoutes from './routes/ibaanRoute.js'
 import landParcelRoutes from './routes/landParcelRoute.js'
 import userRoutes from './routes/userRoute.js'
 import buildingRoutes from './routes/buildingRoutes.js'
+import taxRoutes from './routes/taxRoute.js'
 
 dotenv.config();
 
@@ -31,6 +32,7 @@ app.use("/api/ibaan", ibaanRoutes);
 app.use("/api/landparcel", landParcelRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/building", buildingRoutes);
+app.use("/api/tax", taxRoutes);
 
 // Start server
 app.listen(port, () => {

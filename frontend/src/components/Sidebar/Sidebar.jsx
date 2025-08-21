@@ -84,8 +84,7 @@ const Sidebar = () => {
               <i className="bi bi-backpack3 me-2"></i>
               {isOpen && 'Parcel'}
             </Link>
-
-
+            
             <button
               className="nav-link btn btn-link text-start"
               onClick={() => setSubmenuOpen(!submenuOpen)}
@@ -100,7 +99,9 @@ const Sidebar = () => {
             <Collapse in={submenuOpen}>
               <div id="submenu" className="ms-4">
                 <Link to="/landparcellist" className="nav-link">Land Parcels </Link>
+                <Link to="/taxlist" className="nav-link">Tax Forms </Link>
                 <Link to="/buildinglist" className="nav-link">Buildings </Link>
+                
               </div>
             </Collapse>
 

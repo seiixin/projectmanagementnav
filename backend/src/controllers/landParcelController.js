@@ -1,6 +1,6 @@
 import { database } from '../config/database.js';
 
-export async function getAll (req, res) {
+export async function getAll(req, res) {
   try {
     const [data] = await database.query('SELECT * FROM landparcel');
     res.json(data);
@@ -9,7 +9,7 @@ export async function getAll (req, res) {
   }
 }
 
-export async function addNew (req, res) {
+export async function addNew(req, res) {
   const data = req.body;
   try {
     const {

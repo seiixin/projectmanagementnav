@@ -10,6 +10,8 @@ import LandParcel from './components/LandParcel/LandParcel';
 import LandParcelList from './components/LandParcelList/LandParcelList';
 import Building from './components/Building/Building';
 import BuildingList from './components/BuildingList/BuildingList';
+import TaxForm from './components/TaxForm/TaxForm';
+import TaxList from './components/TaxList/TaxList';
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
@@ -43,6 +45,8 @@ export default function App() {
         <Route path="landparcellist" element={<LandParcelList />} />
         <Route path="building" element={<Building />} />
         <Route path="buildinglist" element={<BuildingList />} />
+        <Route path="taxform" element={<TaxForm />} />
+        <Route path="taxlist" element={<TaxList />} />
       </Route>
 
       {/* Catch-all */}
