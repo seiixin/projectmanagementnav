@@ -1,5 +1,5 @@
 CREATE TABLE tax_forms (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id BIGINT PRIMARY KEY AUTO_INCREMENT, 
   arpNo VARCHAR(50),
   tdPrinted BOOLEAN,
   municipalCode BOOLEAN,
@@ -30,5 +30,5 @@ CREATE TABLE tax_forms (
   lotNo2 VARCHAR(50),
   blockNo VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
+) AUTO_INCREMENT = 1000;
 commit;
