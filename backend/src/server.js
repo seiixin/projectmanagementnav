@@ -9,6 +9,9 @@ import landParcelRoutes from './routes/landParcelRoute.js'
 import userRoutes from './routes/userRoute.js'
 import buildingRoutes from './routes/buildingRoutes.js'
 import taxRoutes from './routes/taxRoute.js'
+import landAppraisalRoutes from './routes/landAppraisalRoute.js'
+import landAssessmentRoutes from './routes/landAssessmentRoutes.js'
+import taxOtherDetailsRoutes from './routes/taxOtherDetailsRoutes.js'
 
 dotenv.config();
 
@@ -33,6 +36,9 @@ app.use("/api/landparcel", landParcelRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/building", buildingRoutes);
 app.use("/api/tax", taxRoutes);
+app.use("/api/landappraisal", landAppraisalRoutes);
+app.use("/api/landassessment", landAssessmentRoutes);
+app.use("/api/taxotherdetails", taxOtherDetailsRoutes);
 
 // Start server
 app.listen(port, () => {

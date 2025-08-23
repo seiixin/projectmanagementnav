@@ -32,7 +32,7 @@ const TaxList = () => {
 
   return (
     <div className="container mt-4">
-      <h2>Tax List</h2>
+      <h2>Taxes List</h2>
       <Button variant="primary" onClick={handleAdd} className="mb-3">
         Add New
       </Button>

@@ -39,18 +39,65 @@ const TaxForm = () => {
     blockNo: "",
   });
 
+  const [landAppraisal, setLandAppraisal] = useState([
+    {
+      id: "",
+      class: "",
+      subClass: "",
+      actualUse: "",
+      unitValue: "",
+      area: "",
+      baseMarketValue: "",
+      stripping: "",
+      adjustment: "",
+      marketValue: "",
+    },
+  ]);
+
+  const [landAssessment, setLandAssessment] = useState({
+    id: "",
+    propertyKind: "",
+    propertyActualUse: "",
+    adjustedMarketValue: "",
+    level: "",
+    assessedValue: "",
+    taxability: "",
+    year: "",
+    quarter: "",
+    updateCode: "",
+    dateRegistered: ""
+  });
+  const [otherDetails, setOtherDetails] = useState({
+    id: "",
+    taxability: "",
+    effectivityYear: "",
+    quarter: "",
+    updateCode: "",
+    dateRegistered: ""
+  });
+
   useEffect(() => {
     const fetchTax = async () => {
       try {             
         const taxId = localStorage.getItem("taxId");
         if(taxId !== null) {
-            const res = await api.get("/tax/" + taxId);
+          const res = await api.get("/tax/" + taxId);
           const taxData = { ...res.data };
           taxData.dated = normalizeDate(taxData.dated);
-      
-        setFormData(taxData);
+          setFormData(taxData);
+
+          const resLand = await api.get("/landappraisal/" + taxId);
+          setLandAppraisal(resLand.data)
+
+          const resLandAssess = await api.get("/landassessment/" + taxId);
+          setLandAssessment(resLandAssess.data)
+
+          const resOtherDetails = await api.get("/taxotherdetails/" + taxId);
+          const otherDetailsData = { ...resOtherDetails.data };
+          otherDetailsData.dateRegistered = normalizeDate(otherDetailsData.dateRegistered);
+          setOtherDetails(otherDetailsData);          
         }
-             } catch (error) {
+      } catch (error) {
         console.log(error)
         console.log("error fetching data")
       } 
@@ -79,12 +126,65 @@ const TaxForm = () => {
         await api.post("/tax", formData);
         alert("Tax saved successfully!");
       }
+      await api.post(`/landappraisal/${taxId}`, landAppraisal);
+
+      await api.post(`/landassessment/${taxId}`, landAssessment);
+
+      await api.post(`/taxotherdetails/${taxId}`, otherDetails);
       navigate("/taxlist");
     } catch (error) {
       console.error(error);
       alert("Error saving data");
     }
   };
+
+  const handleChangeLand = (index, e) => {
+    const { name, value } = e.target;
+    const updatedRows = [...landAppraisal];
+    updatedRows[index][name] = value;
+    setLandAppraisal(updatedRows);
+  };
+
+  const handleChangeLandAssessment = (e) => {
+    const { name, value } = e.target;
+    setLandAssessment({ ...landAssessment, [name]: value });
+  };
+
+  const handleChangeOtherDetails = (e) => {
+    const { name, value } = e.target;
+    setOtherDetails({ ...otherDetails, [name]: value });
+  };
+
+  const addRow = () => {
+    setLandAppraisal([
+      ...landAppraisal,
+      {
+        id: "",
+        class: "",
+        subClass: "",
+        actualUse: "",
+        unitValue: "",
+        area: "",
+        baseMarketValue: "",
+        stripping: "",
+        adjustment: "",
+        marketValue: "",
+      },
+    ]);
+  };
+
+  const deleteRow = async (index, row) => {
+    if(row.id && row.taxid) {
+      await api.delete(`/landappraisal/${row.taxid}/${row.id}`);
+      alert("Row deleted successfully!");
+    }
+    const updatedRows = landAppraisal.filter((_, i) => i !== index);
+    setLandAppraisal(updatedRows);
+  };
+
+  const cancel = () => {
+     navigate("/taxlist");
+  }
 
   return (
     <div className="container mt-4">
@@ -236,12 +336,214 @@ const TaxForm = () => {
             
           </div>
         </div>
+        <div className="col-12">
+          <h4 className="mb-3">Land Appraisal Detail</h4>
+      <div className="table-responsive">
+        <table className="table table-bordered table-sm text-center align-middle">
+          <thead className="table-light">
+            <tr>
+              <th>Class</th>
+              <th>Sub-Class</th>
+              <th>Actual Use</th>
+              <th>Unit Value</th>
+              <th>Area</th>
+              <th>Base Market Value</th>
+              <th>Stripping</th>
+              <th>Adjustment</th>
+              <th>Market Value</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {landAppraisal.map((row, index) => (
+              <tr key={index}>
+                <td>
+                  <input type="hidden" name="id" value={row.id || ""} />
+                  <input
+                    type="text"
+                    name="class"
+                    className="form-control"
+                    value={row.class || ""}
+                    onChange={(e) => handleChangeLand(index, e)}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    name="subClass"
+                    className="form-control"
+                    value={row.subClass || ""}
+                    onChange={(e) => handleChangeLand(index, e)}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="text"
+                    name="actualUse"
+                    className="form-control"
+                    value={row.actualUse || ""}
+                    onChange={(e) => handleChangeLand(index, e)}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    name="unitValue"
+                    className="form-control"
+                    value={row.unitValue || ""}
+                    onChange={(e) => handleChangeLand(index, e)}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    name="area"
+                    className="form-control"
+                    value={row.area || ""}
+                    onChange={(e) => handleChangeLand(index, e)}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    name="baseMarketValue"
+                    className="form-control"
+                    value={row.baseMarketValue || ""}
+                    onChange={(e) => handleChangeLand(index, e)}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    name="stripping"
+                    className="form-control"
+                    value={row.stripping || ""}
+                    onChange={(e) => handleChangeLand(index, e)}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    name="adjustment"
+                    className="form-control"
+                    value={row.adjustment || ""}
+                    onChange={(e) => handleChangeLand(index, e)}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    name="marketValue"
+                    className="form-control"
+                    value={row.marketValue || ""}
+                    onChange={(e) => handleChangeLand(index, e)}
+                  />
+                </td>
+                <td>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() => deleteRow(index,row)}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button type="button" className="btn btn-primary" onClick={addRow}>
+        Add Row
+      </button>
+        </div><br/>
 
+        {/* Land Assessment */}
+        <div className="col-12">
+          <h4 className="mb-3">Land Assessment Summary</h4>
+          <div className="table-responsive">
+            <table className="table table-bordered table-sm text-center align-middle">
+              <thead className="table-light">
+                <tr>
+                  <th>Property Kind</th>
+                  <th>Actual Use</th>
+                  <th>Adjusted Market Value</th>
+                  <th>Level</th>
+                  <th>Assessed Value</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <input type="hidden" name="id" value={landAssessment.id || ""} /><input type="text" name="propertyKind" className="form-control" value={landAssessment.propertyKind} onChange={handleChangeLandAssessment} />
+                  </td>
+                  <td>
+                    <input type="text" name="propertyActualUse" className="form-control" value={landAssessment.propertyActualUse} onChange={handleChangeLandAssessment} />
+                  </td>
+                  <td>
+                    <input type="number" name="adjustedMarketValue" className="form-control" value={landAssessment.adjustedMarketValue} onChange={handleChangeLandAssessment} />
+                  </td>
+                  <td>
+                    <input type="number" name="level" className="form-control" value={landAssessment.level} onChange={handleChangeLandAssessment} />
+                    </td>
+                  <td>
+                    <input type="number" name="assessedValue" className="form-control" value={landAssessment.assessedValue} onChange={handleChangeLandAssessment} />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Other Details */}
+        <div className="col-12">
+          <h4 className="mb-3">Other Details</h4>
+          <div className="row g-3">
+            <div className="col-md-4">
+              <label className="form-label">Taxability</label>
+              <input type="hidden" name="id" value={otherDetails.id || ""} />
+              <select name="taxability" className="form-select" value={otherDetails.taxability} onChange={handleChangeOtherDetails}>
+                <option>-- Select --</option>
+                <option value="Exempted">Exempted</option>
+                <option value="Taxable">Taxable</option>
+              </select>
+            </div>
+            <div className="col-md-4">
+              <label className="form-label">Effectivity Year</label>
+              <input type="number" name="effectivityYear" className="form-control" value={otherDetails.effectivityYear} onChange={handleChangeOtherDetails} />
+            </div>
+            <div className="col-md-4">
+              <label className="form-label">Quarter</label>
+              <select name="quarter" className="form-select" value={otherDetails.quarter} onChange={handleChangeOtherDetails}>
+                <option>-- Select --</option>
+                <option value="1st">1st</option>
+                <option value="2nd">2nd</option>
+                <option value="3rd">3rd</option>
+                <option value="4th">4th</option>
+              </select>
+            </div>
+
+            <div className="col-md-6">
+              <label className="form-label">Update Code</label>
+              
+              <select name="updateCode" className="form-select" value={otherDetails.updateCode} onChange={handleChangeOtherDetails}>
+                <option>-- Select --</option>
+                <option value="GENERAL REVISION">GENERAL REVISION</option>
+              </select>
+            </div>
+            <div className="col-md-6">
+              <label className="form-label">Date Registered</label>
+              <input type="date" name="dateRegistered" className="form-control" value={otherDetails.dateRegistered || ""}  onChange={handleChangeOtherDetails} />
+            </div>
+          </div>
+        </div>
+            <br/>
         {/* Submit */}
         <div className="col-12">
           <button type="submit" className="btn btn-primary">
             Save Tax
-          </button>
+          </button>&nbsp;&nbsp;
+          <button type="button" className="btn btn-primary" onClick={cancel}>Cancel</button>
         </div>
       </form>
     </div>
