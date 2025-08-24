@@ -117,13 +117,14 @@ const TaxForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const taxId = localStorage.getItem("taxId");
+      let taxId = localStorage.getItem("taxId");
       if (taxId) {
         await api.put(`/tax/${taxId}`, formData);
         alert("Tax updated successfully!");
         localStorage.removeItem("parcelID");
       } else {
-        await api.post("/tax", formData);
+        const result = await api.post("/tax", formData);
+        taxId = result.data.insertId;
         alert("Tax saved successfully!");
       }
       await api.post(`/landappraisal/${taxId}`, landAppraisal);

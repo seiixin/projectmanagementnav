@@ -22,7 +22,7 @@ export async function addNew(req, res) {
     )
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
-    database.query(sql,[data.arpNo,
+    const [result] = await database.query(sql,[data.arpNo,
         data.tdPrinted,
         data.municipalCode,
         data.accountNo,
@@ -50,16 +50,12 @@ export async function addNew(req, res) {
         data.surveyNo,
         data.cadLotNo,
         data.lotNo2,
-        data.blockNo],
-      (err, result) => {
-        if (err) {
-          console.error('Error inserting data:', err);
-          return res.status(500).json({ error: 'Database insert failed' });
-        }
-        res.json({ message: 'Tax added successfully'});
-      }
+        data.blockNo]
     );
-    res.json(data[0]);
+    return res.json({
+      message: "Tax added successfully",
+      insertId: result.insertId,
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
