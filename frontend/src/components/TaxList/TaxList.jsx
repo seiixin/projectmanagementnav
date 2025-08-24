@@ -8,16 +8,18 @@ const TaxList = () => {
   const navigate = useNavigate();
   const [taxes, setTaxes] = useState([]);
 
+  // fetch taxes
+  const fetchTaxes = async () => {
+    try {
+      const res = await api.get("/tax");
+      setTaxes(res.data);
+      localStorage.removeItem("taxId"); // leave edit mode
+    } catch (error) {
+      console.log("error fetching data:", error);
+    }
+  };
+
   useEffect(() => {
-    const fetchTaxes = async () => {
-      try {
-        const res = await api.get("/tax");
-        setTaxes(res.data);
-        localStorage.removeItem("taxId");
-      } catch (error) {
-        console.log("error fetching data:", error);
-      }
-    };
     fetchTaxes();
   }, []);
 
@@ -26,8 +28,31 @@ const TaxList = () => {
     navigate("/taxform");
   };
 
-  const handleAdd = () => {
-    navigate("/taxform");
+  const handleAdd = () => navigate("/taxform");
+
+  const handleViewOnMap = (tax) => {
+    const payload = {
+      parcelId: tax.parcelId || tax.ParcelId || "",
+      lotNo: tax.lotNo || tax.lotNo2 || tax.LotNumber || "",
+      barangay: tax.barangay || tax.BarangayNa || "",
+      label: tax.arpNo || tax.lotNo || tax.lotNo2 || "Selected Lot",
+    };
+    localStorage.removeItem("taxId");
+    localStorage.setItem("mapFocus", JSON.stringify(payload));
+    navigate("/"); // adjust if map page has diff route
+  };
+
+  // 🆕 delete tax
+  const handleDelete = async (tax) => {
+    if (!window.confirm(`Delete tax form for ${tax.ownerName}?`)) return;
+    try {
+      await api.delete(`/tax/${tax.id}`);
+      alert("Tax form deleted successfully.");
+      fetchTaxes(); // refresh list
+    } catch (error) {
+      console.error("delete failed", error);
+      alert("Failed to delete tax form.");
+    }
   };
 
   return (
@@ -44,7 +69,7 @@ const TaxList = () => {
               <th>ARP/TD No.</th>
               <th>Account No.</th>
               <th>Owner’s Name</th>
-              <th>Actions</th>
+              <th style={{ width: 300 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -54,13 +79,29 @@ const TaxList = () => {
                 <td>{tax.accountNo}</td>
                 <td>{tax.ownerName}</td>
                 <td>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() => handleEdit(tax)}
-                  >
-                    Edit
-                  </Button>
+                  <div className="d-flex gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => handleViewOnMap(tax)}
+                    >
+                      View on Map
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={() => handleEdit(tax)}
+                    >
+                      Edit
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={() => handleDelete(tax)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
                 </td>
               </tr>
             ))}
