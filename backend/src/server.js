@@ -20,7 +20,7 @@ import auditLogsRoutes from "./routes/auditLogsRoute.js";
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || api-gis.gghsoftwaredev.com;
 
 // Middlewares
 app.set("trust proxy", 1);
@@ -61,5 +61,5 @@ app.use((err, _req, res, _next) => {
 
 // Start
 app.listen(port, () => {
-  console.log(`🚀 Server on http://localhost:${port}`);
+  console.log(`🚀 Server on api-gis.gghsoftwaredev.com:${port}`);
 });
