@@ -1,7 +1,7 @@
-// frontend/src/components/Map/MapPage.jsx
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { MapContainer, TileLayer, GeoJSON, LayersControl } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, LayersControl, useMap } from "react-leaflet";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { createRoot } from "react-dom/client";
 import L from "leaflet";
 import api from "../../lib/axios.js";
 import "leaflet/dist/leaflet.css";
@@ -20,6 +20,199 @@ const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const toStr = (v) => (v == null ? "" : String(v).trim());
 const normParcelId = (v) => toStr(v);
 
+function SearchControl({
+  showSearch,
+  setShowSearch,
+  searchPid,
+  setSearchPid,
+  submitSearch,
+  userCollapsed,
+  setUserCollapsed,
+}) {
+  const map = useMap();
+
+  // ✅ No leaflet-bar here (we add our own class)
+  const containerRef = useRef(L.DomUtil.create("div", "leaflet-control custom-search-ctl"));
+  const rootRef = useRef(null);
+
+  useEffect(() => {
+    const Control = L.Control.extend({
+      onAdd: () => {
+        L.DomEvent.disableClickPropagation(containerRef.current);
+        L.DomEvent.disableScrollPropagation(containerRef.current);
+        return containerRef.current;
+      },
+      onRemove: () => {},
+    });
+    const control = new Control({ position: "topright" });
+    map.addControl(control);
+
+    rootRef.current = createRoot(containerRef.current);
+
+    // ✅ Strip any default chrome, just in case
+    containerRef.current.style.background = "transparent";
+    containerRef.current.style.border = "0";
+    containerRef.current.style.boxShadow = "none";
+
+    return () => {
+      if (rootRef.current) {
+        rootRef.current.unmount();
+        rootRef.current = null;
+      }
+      map.removeControl(control);
+    };
+  }, [map]);
+
+  // Auto-open when text exists unless user collapsed
+  useEffect(() => {
+    const hasText = (searchPid || "").trim().length > 0;
+    if (hasText && !userCollapsed && !showSearch) setShowSearch(true);
+  }, [searchPid, userCollapsed, showSearch, setShowSearch]);
+
+  useEffect(() => {
+    if (!rootRef.current) return;
+
+    const hasText = (searchPid || "").trim().length > 0;
+    const visible = !userCollapsed && (showSearch || hasText);
+
+    const IconButton = (
+      <button
+        onClick={() => {
+          setUserCollapsed(false);
+          setShowSearch(true);
+        }}
+        title="Search parcels"
+        aria-label="Open search"
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: "50%",
+          border: 0,                              // ✅ no line border
+          outline: "none",                        // (optional) remove outline
+          background: "#fff",
+          cursor: "pointer",
+          boxShadow: "0 2px 8px rgba(0,0,0,.18)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 18,
+        }}
+      >
+        🔍
+      </button>
+    );
+
+    const Panel = (
+      <div
+        style={{
+          padding: 8,
+          background: "#fff",
+          border: 0,                              // ✅ no outer border
+          borderRadius: 12,
+          boxShadow: "0 6px 18px rgba(0,0,0,.16)",
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          flexDirection: "row",
+        }}
+      >
+        <form onSubmit={submitSearch} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <div style={{ position: "relative" }}>
+            <input
+              type="text"
+              placeholder="Enter Parcel ID…"
+              value={searchPid}
+              onChange={(e) => setSearchPid(e.target.value)}
+              aria-label="Parcel ID"
+              style={{
+                width: 240,
+                padding: "8px 36px 8px 12px",
+                borderRadius: 10,
+                border: "1px solid #c7ccd1",
+                outline: "none",
+              }}
+            />
+            {hasText && (
+              <button
+                type="button"
+                aria-label="Clear"
+                onClick={() => setSearchPid("")}
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  border: 0,                        // ✅ no little chip border
+                  background: "#fff",
+                  cursor: "pointer",
+                  lineHeight: "20px",
+                }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+          <button
+            type="submit"
+            disabled={!hasText}
+            style={{
+              padding: "8px 14px",
+              borderRadius: 10,
+              border: 0,                            // ✅ search button borderless
+              outline: "none",                      // (optional) remove focus ring
+              background: hasText ? "#0b5faa" : "#9bb8d4",
+              color: "#fff",
+              fontWeight: 700,
+              cursor: hasText ? "pointer" : "not-allowed",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+            title={hasText ? "Search" : "Type a Parcel ID first"}
+          >
+            <span style={{ fontSize: 16 }}>🔎</span> Search
+          </button>
+        </form>
+
+        <button
+          onClick={() => {
+            setShowSearch(false);
+            setUserCollapsed(true);
+          }}
+          title="Hide search"
+          aria-label="Hide search"
+          style={{
+            padding: "8px 10px",
+            borderRadius: 10,
+            border: 0,                              // ✅ hide button borderless (optional)
+            background: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          Hide
+        </button>
+      </div>
+    );
+
+    const ui = (
+      <>
+        {/* Ensure our control never gets Leaflet's default border/shadow */}
+        <style>
+          {`.custom-search-ctl { background: transparent !important; border: 0 !important; box-shadow: none !important; }`}
+        </style>
+        <div style={{ marginTop: 8 }}>{visible ? Panel : IconButton}</div>
+      </>
+    );
+
+    rootRef.current.render(ui);
+  }, [showSearch, searchPid, userCollapsed, setShowSearch, setUserCollapsed, setSearchPid, submitSearch]);
+
+  return null;
+}
+
 export default function MapPage() {
   const { parcelId: routeParcelId } = useParams(); // /:parcelId
   const navigate = useNavigate();
@@ -32,26 +225,21 @@ export default function MapPage() {
 
   // UI for hideable search
   const [showSearch, setShowSearch] = useState(!routeParcelId);
+  const [userCollapsed, setUserCollapsed] = useState(false); // explicit user toggle
   const [searchPid, setSearchPid] = useState(routeParcelId || "");
 
   // "which parcel should auto-open?"
   const [pendingPid, setPendingPid] = useState(routeParcelId ? normParcelId(routeParcelId) : "");
-  const pendingPidRef = useRef(pendingPid);          // mirror as ref so we can read in render
-  const pendingLayerRef = useRef(null);              // layer that matched while rendering
+  const pendingPidRef = useRef(pendingPid); // mirror as ref so we can read in render
+  const pendingLayerRef = useRef(null); // layer that matched while rendering
 
   // fast lookups: ParcelId -> Leaflet layer
   const layersByParcelRef = useRef(new Map());
 
   const MAX_ZOOM = 19;
   const fallbackCenter = useMemo(() => [13.8, 121.14], []);
-  const baseStyle = useMemo(
-    () => ({ color: "#1e73be", weight: 1.25, fillOpacity: 0.22 }),
-    []
-  );
-  const highlightStyle = useMemo(
-    () => ({ color: "#0b5faa", weight: 2, fillOpacity: 0.28 }),
-    []
-  );
+  const baseStyle = useMemo(() => ({ color: "#1e73be", weight: 1.25, fillOpacity: 0.22 }), []);
+  const highlightStyle = useMemo(() => ({ color: "#0b5faa", weight: 2, fillOpacity: 0.28 }), []);
 
   // ----------------- load parcels -----------------
   useEffect(() => {
@@ -66,7 +254,11 @@ export default function MapPage() {
           .map((row) => {
             let geom = row.geometry;
             if (typeof geom === "string" && geom.trim()) {
-              try { geom = JSON.parse(geom); } catch { geom = null; }
+              try {
+                geom = JSON.parse(geom);
+              } catch {
+                geom = null;
+              }
             }
             if (!geom) return null;
             const { geometry, ...props } = row;
@@ -85,13 +277,15 @@ export default function MapPage() {
   }, []);
 
   // keep mirrors in sync
-  useEffect(() => { pendingPidRef.current = pendingPid; }, [pendingPid]);
+  useEffect(() => {
+    pendingPidRef.current = pendingPid;
+  }, [pendingPid]);
 
   // keep UI in sync with route
   useEffect(() => {
     const pid = routeParcelId ? normParcelId(routeParcelId) : "";
     setSearchPid(pid);
-    setShowSearch(!pid);
+    setShowSearch(!pid); // default behavior; SearchControl will auto-open if pid & not user-collapsed
     setPendingPid(pid);
   }, [routeParcelId]);
 
@@ -103,69 +297,72 @@ export default function MapPage() {
   };
 
   // reliably fit + open popup
-  const focusAndOpen = useCallback((layer) => {
-    console.log("focusAndOpen called with:", layer, "mapObj:", mapObj);
-    
-    if (!layer || !mapObj) {
-      console.log("Missing layer or mapObj");
-      return;
-    }
+  const focusAndOpen = useCallback(
+    (layer) => {
+      console.log("focusAndOpen called with:", layer, "mapObj:", mapObj);
 
-    const bounds = layer.getBounds?.();
-    console.log("Layer bounds:", bounds);
-    
-    const doOpen = () => {
-      console.log("Attempting to open popup...");
-      
-      // Try multiple ways to open the popup
-      if (layer.getPopup && layer.getPopup()) {
-        console.log("Opening existing popup");
-        layer.openPopup();
-      } else if (layer.bindPopup) {
-        console.log("Popup exists, trying to open");
-        layer.openPopup();
-      } else {
-        console.log("Firing click event");
-        try { 
-          layer.fire("click"); 
-        } catch (e) {
-          console.error("Error firing click:", e);
-        }
+      if (!layer || !mapObj) {
+        console.log("Missing layer or mapObj");
+        return;
       }
-      
-      // Force highlight the layer
-      layer.setStyle(highlightStyle);
-    };
 
-    if (bounds && bounds.isValid()) {
-      console.log("Fitting bounds and opening popup");
-      mapObj.fitBounds(bounds, { maxZoom: 18, animate: true });
-      
-      // Try opening immediately
-      setTimeout(doOpen, 100);
-      
-      // Also try after map movement
-      let opened = false;
-      const onMoveEnd = () => {
-        if (opened) return;
-        opened = true;
-        mapObj.off("moveend", onMoveEnd);
-        setTimeout(doOpen, 100);
-      };
-      mapObj.on("moveend", onMoveEnd);
-      
-      // Fallback
-      setTimeout(() => {
-        if (!opened) {
-          mapObj.off("moveend", onMoveEnd);
-          doOpen();
+      const bounds = layer.getBounds?.();
+      console.log("Layer bounds:", bounds);
+
+      const doOpen = () => {
+        console.log("Attempting to open popup...");
+
+        // Try multiple ways to open the popup
+        if (layer.getPopup && layer.getPopup()) {
+          console.log("Opening existing popup");
+          layer.openPopup();
+        } else if (layer.bindPopup) {
+          console.log("Popup exists, trying to open");
+          layer.openPopup();
+        } else {
+          console.log("Firing click event");
+          try {
+            layer.fire("click");
+          } catch (e) {
+            console.error("Error firing click:", e);
+          }
         }
-      }, 1000);
-    } else {
-      console.log("No valid bounds, opening popup directly");
-      doOpen();
-    }
-  }, [mapObj, highlightStyle]);
+
+        // Force highlight the layer
+        layer.setStyle(highlightStyle);
+      };
+
+      if (bounds && bounds.isValid()) {
+        console.log("Fitting bounds and opening popup");
+        mapObj.fitBounds(bounds, { maxZoom: 18, animate: true });
+
+        // Try opening immediately
+        setTimeout(doOpen, 100);
+
+        // Also try after map movement
+        let opened = false;
+        const onMoveEnd = () => {
+          if (opened) return;
+          opened = true;
+          mapObj.off("moveend", onMoveEnd);
+          setTimeout(doOpen, 100);
+        };
+        mapObj.on("moveend", onMoveEnd);
+
+        // Fallback
+        setTimeout(() => {
+          if (!opened) {
+            mapObj.off("moveend", onMoveEnd);
+            doOpen();
+          }
+        }, 1000);
+      } else {
+        console.log("No valid bounds, opening popup directly");
+        doOpen();
+      }
+    },
+    [mapObj, highlightStyle]
+  );
 
   // initial fit (no pid)
   useEffect(() => {
@@ -185,23 +382,23 @@ export default function MapPage() {
       alert("Please enter a valid Parcel ID");
       return;
     }
-    
+
     console.log("Searching for parcel:", pid);
     console.log("Available parcels:", Array.from(layersByParcelRef.current.keys()));
-    
+
     // Find the layer for this parcel ID - try different formats
     let targetLayer = layersByParcelRef.current.get(pid);
-    
+
     // If not found, try as number
     if (!targetLayer && !isNaN(pid)) {
       targetLayer = layersByParcelRef.current.get(Number(pid));
     }
-    
+
     // If still not found, try as string
     if (!targetLayer) {
       targetLayer = layersByParcelRef.current.get(String(pid));
     }
-    
+
     // If still not found, search through all layers manually
     if (!targetLayer) {
       for (const [key, layer] of layersByParcelRef.current.entries()) {
@@ -211,9 +408,11 @@ export default function MapPage() {
         }
       }
     }
-    
+
     if (!targetLayer) {
-      const availableParcels = Array.from(layersByParcelRef.current.keys()).slice(0, 10).join(", ");
+      const availableParcels = Array.from(layersByParcelRef.current.keys())
+        .slice(0, 10)
+        .join(", ");
       alert(`Parcel with ID "${pid}" not found.\n\nAvailable parcels (first 10): ${availableParcels}...`);
       return;
     }
@@ -224,27 +423,28 @@ export default function MapPage() {
 
     // Hide search first
     setShowSearch(false);
-    
+
     // Wait a bit for UI to update, then focus and open
     setTimeout(() => {
       console.log("Attempting to focus and open popup...");
-      
+
       // Try the focusAndOpen function first
       focusAndOpen(targetLayer);
-      
+
       // Also try directly simulating a click as backup
       setTimeout(() => {
         console.log("Trying direct click simulation...");
         try {
           // Simulate the click event that normally opens the popup
-          targetLayer.fire('click', {
-            latlng: targetLayer.getBounds().getCenter(),
-            layerPoint: mapObj.latLngToLayerPoint(targetLayer.getBounds().getCenter()),
-            containerPoint: mapObj.latLngToContainerPoint(targetLayer.getBounds().getCenter())
+          const c = targetLayer.getBounds().getCenter();
+          targetLayer.fire("click", {
+            latlng: c,
+            layerPoint: mapObj.latLngToLayerPoint(c),
+            containerPoint: mapObj.latLngToContainerPoint(c),
           });
         } catch (e) {
           console.error("Error with click simulation:", e);
-          
+
           // Last resort - try opening popup directly
           if (targetLayer.getPopup()) {
             console.log("Last resort: opening popup directly");
@@ -252,11 +452,10 @@ export default function MapPage() {
           }
         }
       }, 500);
-      
     }, 200);
-    
+
     // Also update the URL without navigation
-    window.history.pushState(null, '', `/${encodeURIComponent(pid)}`);
+    window.history.pushState(null, "", `/${encodeURIComponent(pid)}`);
   };
 
   // After render, if a pending layer exists (or shows up), open it.
@@ -272,7 +471,7 @@ export default function MapPage() {
       if (lyr && mapObj) {
         focusAndOpen(lyr);
         pendingLayerRef.current = null;
-        setPendingPid("");            // safe here (post-render)
+        setPendingPid(""); // safe here (post-render)
         return true;
       }
       n += 1;
@@ -281,7 +480,9 @@ export default function MapPage() {
 
     // try immediately and keep polling briefly
     if (tick()) return;
-    const iv = setInterval(() => { if (tick()) clearInterval(iv); }, 100);
+    const iv = setInterval(() => {
+      if (tick()) clearInterval(iv);
+    }, 100);
     return () => clearInterval(iv);
   }, [pendingPid, mapObj, focusAndOpen]);
 
@@ -297,12 +498,14 @@ export default function MapPage() {
         if (Array.isArray(data)) return data[0]?.id ?? data[0]?.taxId ?? null;
         if (typeof data === "object") return data?.id ?? data?.taxId ?? data?.result?.id ?? data?.result?.taxId ?? null;
         return null;
-      } catch { return null; }
+      } catch {
+        return null;
+      }
     };
     if (lotNo) {
       for (const t of [
         { url: "/tax/lookup", params: { lotNo, barangay } },
-        { url: "/tax",        params: { lotNo, barangay } },
+        { url: "/tax", params: { lotNo, barangay } },
         { url: `/tax/by-lot/${encodeURIComponent(lotNo)}`, params: { barangay } },
       ]) {
         const id = await tryGet(t.url, t.params);
@@ -317,7 +520,7 @@ export default function MapPage() {
     const p = feature.properties || {};
     const pid = getPidFromProps(p);
     console.log("Processing feature with PID:", pid, "Properties:", p);
-    
+
     if (pid) {
       layersByParcelRef.current.set(pid, layer);
       // Also store as string and number variants to improve search
@@ -385,16 +588,16 @@ export default function MapPage() {
           </button>
         </div>
       </div>`;
-    layer.bindPopup(html, { maxWidth: 300, className: 'custom-popup' });
+    layer.bindPopup(html, { maxWidth: 300, className: "custom-popup" });
 
     layer.on("popupopen", () => {
       const btnTax = document.getElementById(uidTax);
       const btnParcel = document.getElementById(uidParcel);
 
       if (btnTax) {
-        btnTax.onmouseover = () => btnTax.style.backgroundColor = "#083d73";
-        btnTax.onmouseout = () => btnTax.style.backgroundColor = "#0b5faa";
-        
+        btnTax.onmouseover = () => (btnTax.style.backgroundColor = "#083d73");
+        btnTax.onmouseout = () => (btnTax.style.backgroundColor = "#0b5faa");
+
         btnTax.onclick = async () => {
           btnTax.disabled = true;
           btnTax.textContent = "Opening…";
@@ -437,7 +640,7 @@ export default function MapPage() {
           btnParcel.style.backgroundColor = "#fff";
           btnParcel.style.borderColor = "#d0d7de";
         };
-        
+
         btnParcel.onclick = () => {
           const lines = [
             `Parcel ID: ${p?.ParcelId ?? "—"}`,
@@ -492,65 +695,6 @@ export default function MapPage() {
         }
       `}</style>
 
-      {/* 🔎 hide-able search */}
-      {!showSearch && (
-        <button
-          onClick={() => setShowSearch(true)}
-          title="Search ParcelId"
-          style={{
-            position: "absolute", zIndex: 1100, top: 12, left: 12,
-            width: 40, height: 40, borderRadius: 8, border: "1px solid #d0d7de",
-            background: "#fff", cursor: "pointer", boxShadow: "0 2px 6px rgba(0,0,0,.15)",
-          }}
-        >
-          🔎
-        </button>
-      )}
-
-      {showSearch && (
-        <div
-          style={{
-            position: "absolute", zIndex: 1100, top: 12, left: 12,
-            padding: 10, background: "#fff", border: "1px solid #d0d7de",
-            borderRadius: 10, boxShadow: "0 2px 10px rgba(0,0,0,.15)",
-            display: "flex", gap: 8, alignItems: "center",
-          }}
-        >
-          <form onSubmit={submitSearch} style={{ display: "flex", gap: 8 }}>
-            <input
-              type="text"
-              placeholder="Enter ParcelId…"
-              value={searchPid}
-              onChange={(e) => setSearchPid(e.target.value)}
-              style={{
-                width: 220, padding: "6px 10px", borderRadius: 8,
-                border: "1px solid #c7ccd1", outline: "none",
-              }}
-            />
-            <button
-              type="submit"
-              style={{
-                padding: "6px 12px", borderRadius: 8, border: "0",
-                background: "#0b5faa", color: "#fff", fontWeight: 600, cursor: "pointer",
-              }}
-            >
-              Go
-            </button>
-          </form>
-
-          <button
-            onClick={() => setShowSearch(false)}
-            title="Hide"
-            style={{
-              padding: "6px 10px", borderRadius: 8, border: "1px solid #d0d7de",
-              background: "#fff", cursor: "pointer",
-            }}
-          >
-            Hide
-          </button>
-        </div>
-      )}
-
       <MapContainer
         center={fallbackCenter}
         zoom={12}
@@ -599,6 +743,17 @@ export default function MapPage() {
             />
           </LayersControl.BaseLayer>
         </LayersControl>
+
+        {/* 👇 Custom control renders below the LayersControl in top-right */}
+        <SearchControl
+          showSearch={showSearch}
+          setShowSearch={setShowSearch}
+          searchPid={searchPid}
+          setSearchPid={setSearchPid}
+          submitSearch={submitSearch}
+          userCollapsed={userCollapsed}
+          setUserCollapsed={setUserCollapsed}
+        />
 
         <GeoJSON
           data={fc}

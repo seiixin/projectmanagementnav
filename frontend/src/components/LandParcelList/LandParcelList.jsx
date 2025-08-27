@@ -1,9 +1,37 @@
-// frontend/src/components/LandParcelList/LandParcelList.jsx
 import React, { useEffect, useState } from "react";
 import Table from "react-bootstrap/Table";
 import Button from "react-bootstrap/Button";
 import api from "../../lib/axios.js";
 import { useNavigate } from "react-router-dom";
+
+// Lazy modal helpers reused across pages (SweetAlert2 preferred)
+async function showRedirectModal(parcelId) {
+  try {
+    const { default: Swal } = await import("sweetalert2");
+    const res = await Swal.fire({
+      title: "Redirecting",
+      html: `Redirecting to: <strong>${parcelId}</strong>`,
+      icon: "info",
+      showCancelButton: true,
+      confirmButtonText: "Continue",
+      cancelButtonText: "Cancel",
+      allowOutsideClick: false,
+      allowEscapeKey: true,
+    });
+    return !!res.isConfirmed;
+  } catch (e) {
+    return window.confirm(`Redirecting to: ${parcelId}. Continue?`);
+  }
+}
+
+async function showInfo(message) {
+  try {
+    const { default: Swal } = await import("sweetalert2");
+    await Swal.fire({ title: "Notice", text: message, icon: "info" });
+  } catch (e) {
+    alert(message);
+  }
+}
 
 const LandParcelList = () => {
   const navigate = useNavigate();
@@ -33,31 +61,31 @@ const LandParcelList = () => {
 
   const handleAdd = () => navigate("/landparcel");
 
-  // ✅ Same behavior as TaxList "View on Map"
-  const handleViewOnMap = (parcel) => {
+  // ✅ Same behavior as Parcel/TaxList "View on Map" with confirmation modal
+  const handleViewOnMap = async (parcel) => {
     // Be generous about field names
     const pid = toStr(
       parcel.parcelID ?? parcel.ParcelId ?? parcel.parcelId ?? parcel.PARCELID ?? ""
     );
 
     if (!pid) {
-      alert("This row has no Parcel ID.");
+      await showInfo("This row has no Parcel ID.");
       return;
     }
 
-    // Optional heads-up (matches your earlier UX)
-    alert(`Redirecting to: ${pid}`);
+    const rowPid = parcel.parcelID ?? parcel.ParcelId ?? parcel.parcelId ?? pid;
+    setNavBusyId(rowPid);
 
-    // Disable just this row's button briefly
-    setNavBusyId(parcel.parcelID ?? pid);
-
-    // Deep link: MapPage will focus & open popup
-    navigate(`/${encodeURIComponent(pid)}`);
+    const ok = await showRedirectModal(pid);
+    if (ok) {
+      navigate(`/${encodeURIComponent(pid)}`);
+    }
+    setNavBusyId(null);
   };
 
   // (still a placeholder)
   const handleDelete = async (parcel) => {
-    alert(`Delete (TEMP): Would delete parcelID=${parcel.parcelID}`);
+    await showInfo(`Delete (TEMP): Would delete parcelID=${parcel.parcelID}`);
   };
 
   return (

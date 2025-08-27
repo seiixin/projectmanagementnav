@@ -1,4 +1,3 @@
-// frontend/src/components/TaxList/TaxList.jsx
 import React, { useEffect, useState } from "react";
 import Table from "react-bootstrap/Table";
 import Button from "react-bootstrap/Button";
@@ -7,6 +6,35 @@ import { useNavigate } from "react-router-dom";
 
 const toStr = (v) => (v == null ? "" : String(v).trim());
 const up = (v) => toStr(v).toUpperCase();
+
+// Lazy modal helpers (SweetAlert2 preferred; fallback to native dialogs)
+async function showRedirectModal(parcelId) {
+  try {
+    const { default: Swal } = await import("sweetalert2");
+    const res = await Swal.fire({
+      title: "Redirecting",
+      html: `Redirecting to: <strong>${parcelId}</strong>`,
+      icon: "info",
+      showCancelButton: true,
+      confirmButtonText: "Continue",
+      cancelButtonText: "Cancel",
+      allowOutsideClick: false,
+      allowEscapeKey: true,
+    });
+    return !!res.isConfirmed;
+  } catch (e) {
+    return window.confirm(`Redirecting to: ${parcelId}. Continue?`);
+  }
+}
+
+async function showInfo(message) {
+  try {
+    const { default: Swal } = await import("sweetalert2");
+    await Swal.fire({ title: "Notice", text: message, icon: "info" });
+  } catch (e) {
+    alert(message);
+  }
+}
 
 export default function TaxList() {
   const navigate = useNavigate();
@@ -65,10 +93,10 @@ export default function TaxList() {
       }
     }
 
-    // If we have a ParcelId → deep-link and MapPage will auto-open the popup
+    // If we have a ParcelId → confirm then deep-link (MapPage will auto-open the popup)
     if (parcelId) {
-      alert(`Redirecting to: ${parcelId}`);
-      navigate(`/${encodeURIComponent(parcelId)}`);
+      const ok = await showRedirectModal(parcelId);
+      if (ok) navigate(`/${encodeURIComponent(parcelId)}`);
       setNavBusyId(null);
       return;
     }
@@ -80,11 +108,7 @@ export default function TaxList() {
       barangay: brgy,
       label:
         toStr(
-          tax.arpNo ??
-            tax.lotNo ??
-            tax.lotNo2 ??
-            tax.ownerName ??
-            "Selected Parcel"
+          tax.arpNo ?? tax.lotNo ?? tax.lotNo2 ?? tax.ownerName ?? "Selected Parcel"
         ) || "Selected Parcel",
     };
     try {
@@ -93,7 +117,7 @@ export default function TaxList() {
     } catch (e) {
       console.warn("Failed to write mapFocus:", e);
     }
-    alert("ParcelId not found. Focusing by Lot/Barangay…");
+    await showInfo("ParcelId not found. Focusing by Lot/Barangay…");
     navigate("/");
     setNavBusyId(null);
   };

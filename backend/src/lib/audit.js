@@ -1,59 +1,57 @@
 // backend/src/lib/audit.js
 import { database } from "../config/database.js";
 
-export async function writeAuditLog({
-  req,
-  user_id = null,
-  username = "unknown",
-  action,                 // 'CREATE' | 'UPDATE' | 'DELETE'
-  entity_type,            // 'ibaan' | 'tax_forms' | 'landparcel' | ...
-  entity_id,              // string/number
-  entity_ctx = null,      // small JSON: { ParcelId, LotNumber, BarangayNa, ... }
-  changed_fields = null,  // array or null
-  before_data = null,     // small snapshot or null
-  after_data = null,      // small snapshot or null
-}) {
-  const ip =
-    req?.headers?.["x-forwarded-for"]?.split(",")[0]?.trim() ||
-    req?.socket?.remoteAddress ||
-    null;
-
-  const user_agent = req?.headers?.["user-agent"] || null;
-
-  const sql = `
-    INSERT INTO audit_logs
-      (user_id, username, action, entity_type, entity_id, entity_ctx,
-       changed_fields, before_data, after_data, ip, user_agent)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `;
-
-  const toJson = (x) => (x == null ? null : JSON.stringify(x));
-
-  await database.query(sql, [
-    user_id,
-    username,
-    action,
-    entity_type,
-    String(entity_id ?? ""),
-    toJson(entity_ctx),
-    toJson(changed_fields),
-    toJson(before_data),
-    toJson(after_data),
-    ip,
-    user_agent,
-  ]);
-}
-
-/** Shallow diff helper */
 export function diffFields(before = {}, after = {}) {
-  const changed = [];
   const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
+  const norm = (v) => {
+    if (v instanceof Date) return v.toISOString().slice(0, 10); // YYYY-MM-DD for DATE
+    return v;
+  };
+  const changed = [];
   for (const k of keys) {
-    const b = before?.[k];
-    const a = after?.[k];
-    // Skip volatile/huge fields if you want
-    if (k === "geometry") continue;
+    const b = norm(before?.[k]);
+    const a = norm(after?.[k]);
     if (JSON.stringify(b) !== JSON.stringify(a)) changed.push(k);
   }
   return changed;
 }
+
+export async function writeAuditLog({
+  req,
+  action,                // 'CREATE' | 'UPDATE' | 'DELETE'
+  entity_type,           // e.g. 'ibaan'
+  entity_id,             // e.g. ParcelId as string
+  entity_ctx = {},       // small JSON for quick display
+  changed_fields = [],   // ['LotNumber', ...]
+  before_data = null,    // slimmed JSON snapshot
+  after_data = null,     // slimmed JSON snapshot
+}) {
+  // Never throw out of here; validate & stringify cleanly
+  try {
+    const username = (req?.user?.username ?? req?.auth?.username ?? "anonymous").slice(0, 255);
+    const user_id = req?.user?.id ?? null;
+    const ip = (req?.headers?.["x-forwarded-for"]?.split(",")[0] || req?.ip || null);
+    const user_agent = req?.headers?.["user-agent"] || null;
+
+    // Stringify once; MariaDB treats JSON columns as LONGTEXT and doesn't support CAST(... AS JSON)
+    const entity_ctx_json     = JSON.stringify(entity_ctx ?? {});
+    const changed_fields_json = JSON.stringify(Array.isArray(changed_fields) ? changed_fields : []);
+    const before_json         = before_data == null ? null : JSON.stringify(before_data);
+    const after_json          = after_data  == null ? null : JSON.stringify(after_data);
+
+    await database.query(
+      `INSERT INTO audit_logs
+        (user_id, username, action, entity_type, entity_id,
+         entity_ctx, changed_fields, before_data, after_data, ip, user_agent)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        user_id, username, action, entity_type, String(entity_id),
+        entity_ctx_json, changed_fields_json, before_json, after_json, ip, user_agent,
+      ]
+    );
+  } catch (e) {
+    // log and swallow — never break the main flow
+    console.error("writeAuditLog failed (swallowed):", e?.sqlMessage || e?.message || e);
+  }
+}
+
