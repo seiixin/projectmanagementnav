@@ -100,7 +100,7 @@ const Parcel = () => {
           <input
             type="text"
             className="form-control"
-            placeholder="Search by owner, Parcel ID, or location"
+            placeholder="Search by owner, Parcel ID, or Barangay"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
