@@ -1,21 +1,27 @@
+// frontend/src/components/TaxList/TaxList.jsx
 import React, { useEffect, useState } from "react";
 import Table from "react-bootstrap/Table";
 import Button from "react-bootstrap/Button";
 import api from "../../lib/axios.js";
 import { useNavigate } from "react-router-dom";
 
-const TaxList = () => {
+const toStr = (v) => (v == null ? "" : String(v).trim());
+const up = (v) => toStr(v).toUpperCase();
+
+export default function TaxList() {
   const navigate = useNavigate();
   const [taxes, setTaxes] = useState([]);
+  const [navBusyId, setNavBusyId] = useState(null);
 
   // fetch taxes
   const fetchTaxes = async () => {
     try {
       const res = await api.get("/tax");
-      setTaxes(res.data);
+      setTaxes(Array.isArray(res.data) ? res.data : []);
       localStorage.removeItem("taxId"); // leave edit mode
     } catch (error) {
       console.log("error fetching data:", error);
+      setTaxes([]);
     }
   };
 
@@ -30,25 +36,74 @@ const TaxList = () => {
 
   const handleAdd = () => navigate("/taxform");
 
-  const handleViewOnMap = (tax) => {
+  const handleViewOnMap = async (tax) => {
+    setNavBusyId(tax.id);
+
+    // Try to get ParcelId straight from the tax row
+    let parcelId = toStr(tax.parcelId ?? tax.ParcelId ?? tax.parcelID ?? "");
+
+    const lot = up(tax.lotNo ?? tax.lotNo2 ?? tax.LotNumber ?? "");
+    const brgy = up(tax.barangay ?? tax.BarangayNa ?? "");
+
+    // If missing ParcelId, try to infer from /ibaan using LotNumber + Barangay
+    if (!parcelId && (lot || brgy)) {
+      try {
+        const res = await api.get("/ibaan");
+        const rows = Array.isArray(res.data) ? res.data : [res.data];
+        const match = rows.find((r) => {
+          const rLot = up(r?.LotNumber ?? r?.lotNo ?? "");
+          const rBrgy = up(r?.BarangayNa ?? r?.barangay ?? "");
+          return (lot ? rLot === lot : true) && (brgy ? rBrgy === brgy : true);
+        });
+        if (match) {
+          parcelId = toStr(
+            match?.ParcelId ?? match?.parcelId ?? match?.PARCELID ?? match?.parcelID ?? ""
+          );
+        }
+      } catch (e) {
+        console.warn("ParcelId lookup via /ibaan failed:", e);
+      }
+    }
+
+    // If we have a ParcelId → deep-link and MapPage will auto-open the popup
+    if (parcelId) {
+      alert(`Redirecting to: ${parcelId}`);
+      navigate(`/${encodeURIComponent(parcelId)}`);
+      setNavBusyId(null);
+      return;
+    }
+
+    // Fallback: no ParcelId → focus by lot/brgy on root map
     const payload = {
-      parcelId: tax.parcelId || tax.ParcelId || "",
-      lotNo: tax.lotNo || tax.lotNo2 || tax.LotNumber || "",
-      barangay: tax.barangay || tax.BarangayNa || "",
-      label: tax.arpNo || tax.lotNo || tax.lotNo2 || "Selected Lot",
+      parcelId: "",
+      lotNo: lot,
+      barangay: brgy,
+      label:
+        toStr(
+          tax.arpNo ??
+            tax.lotNo ??
+            tax.lotNo2 ??
+            tax.ownerName ??
+            "Selected Parcel"
+        ) || "Selected Parcel",
     };
-    localStorage.removeItem("taxId");
-    localStorage.setItem("mapFocus", JSON.stringify(payload));
-    navigate("/"); // adjust if map page has diff route
+    try {
+      localStorage.removeItem("taxId");
+      localStorage.setItem("mapFocus", JSON.stringify(payload));
+    } catch (e) {
+      console.warn("Failed to write mapFocus:", e);
+    }
+    alert("ParcelId not found. Focusing by Lot/Barangay…");
+    navigate("/");
+    setNavBusyId(null);
   };
 
-  // 🆕 delete tax
   const handleDelete = async (tax) => {
     if (!window.confirm(`Delete tax form for ${tax.ownerName}?`)) return;
     try {
       await api.delete(`/tax/${tax.id}`);
       alert("Tax form deleted successfully.");
-      fetchTaxes(); // refresh list
+      fetchTaxes();
     } catch (error) {
       console.error("delete failed", error);
       alert("Failed to delete tax form.");
@@ -84,8 +139,9 @@ const TaxList = () => {
                       variant="secondary"
                       size="sm"
                       onClick={() => handleViewOnMap(tax)}
+                      disabled={navBusyId === tax.id}
                     >
-                      View on Map
+                      {navBusyId === tax.id ? "Opening…" : "View on Map"}
                     </Button>
                     <Button
                       variant="primary"
@@ -112,6 +168,4 @@ const TaxList = () => {
       )}
     </div>
   );
-};
-
-export default TaxList;
+}
