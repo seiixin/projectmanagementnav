@@ -14,6 +14,8 @@ import Building from './components/Building/Building';
 import BuildingList from './components/BuildingList/BuildingList';
 import TaxForm from './components/TaxForm/TaxForm';
 import TaxList from './components/TaxList/TaxList';
+import SurveyReturns from "./SurveyReturns/SurveyReturns.jsx";
+
 
 // Map deep-link page
 import MapPage from './components/Map/MapPage';
@@ -61,6 +63,8 @@ export default function App() {
 
         {/* 🔎 Logs page */}
         <Route path="logs" element={<Logs />} />
+
+        <Route path="/surveyreturns" element={<SurveyReturns />} />
 
         {/* Deep-link map routes */}
         <Route path="map" element={<MapPage />} />

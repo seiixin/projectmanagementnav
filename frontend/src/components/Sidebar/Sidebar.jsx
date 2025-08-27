@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Collapse } from "react-bootstrap";
-import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap-icons/font/bootstrap-icons.css";
 import "./Sidebar.css";
@@ -9,25 +9,21 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // responsive flags
   const isSmallScreen = () => window.innerWidth < 768;
 
-  // state
   const [isMobile, setIsMobile] = useState(isSmallScreen());
   const [isOpen, setIsOpen] = useState(!isSmallScreen()); // open on desktop, closed on mobile
 
   // open Projects submenu if current route is inside it
-  const routeInProjects = /^(\/(landparcellist|taxlist|buildinglist|logs))/.test(
+  const routeInProjects = /^(\/(landparcellist|taxlist|buildinglist|logs|surveyreturns))/.test(
     location.pathname
   );
   const [submenuOpen, setSubmenuOpen] = useState(routeInProjects);
 
-  // keep submenu in sync when route changes
   useEffect(() => {
     setSubmenuOpen(routeInProjects);
   }, [routeInProjects]);
 
-  // handle resize
   useEffect(() => {
     const onResize = () => {
       const mobile = isSmallScreen();
@@ -38,7 +34,6 @@ const Sidebar = () => {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
-  // close sidebar on mobile after navigation
   const onNavigate = useCallback(
     (to) => (e) => {
       if (to) navigate(to);
@@ -53,7 +48,6 @@ const Sidebar = () => {
     window.location = "/";
   };
 
-  // util for active class
   const navClass = ({ isActive }) =>
     "nav-link" + (isActive ? " active fw-semibold" : "");
 
@@ -73,15 +67,8 @@ const Sidebar = () => {
 
       {/* Sidebar */}
       <div
-        className={`Sidebar ${
-          isMobile ? (isOpen ? "sidebar-show" : "sidebar-hide") : ""
-        }`}
-        style={{
-          position: isMobile ? "fixed" : "relative",
-          top: 0,
-          left: 0,
-          zIndex: 2000,
-        }}
+        className={`Sidebar ${isMobile ? (isOpen ? "sidebar-show" : "sidebar-hide") : ""}`}
+        style={{ position: isMobile ? "fixed" : "relative", top: 0, left: 0, zIndex: 2000 }}
       >
         <div
           className="d-flex flex-column"
@@ -109,11 +96,7 @@ const Sidebar = () => {
               {isOpen && "Home"}
             </NavLink>
 
-            <NavLink
-              to="/parcel"
-              className={navClass}
-              onClick={onNavigate("/parcel")}
-            >
+            <NavLink to="/parcel" className={navClass} onClick={onNavigate("/parcel")}>
               <i className="bi bi-backpack3 me-2" />
               {isOpen && "Parcel"}
             </NavLink>
@@ -128,11 +111,7 @@ const Sidebar = () => {
               <i className="bi bi-folder me-2" />
               {isOpen && <span className="flex-grow-1">Projects</span>}
               {isOpen && (
-                <i
-                  className={`bi ms-auto ${
-                    submenuOpen ? "bi-caret-up-fill" : "bi-caret-down-fill"
-                  }`}
-                />
+                <i className={`bi ms-auto ${submenuOpen ? "bi-caret-up-fill" : "bi-caret-down-fill"}`} />
               )}
             </button>
 
@@ -148,11 +127,7 @@ const Sidebar = () => {
                   {!isOpen && <i className="bi bi-geo" />}
                 </NavLink>
 
-                <NavLink
-                  to="/taxlist"
-                  className={navClass}
-                  onClick={onNavigate("/taxlist")}
-                >
+                <NavLink to="/taxlist" className={navClass} onClick={onNavigate("/taxlist")}>
                   {isOpen && "Tax Forms"}
                   {!isOpen && <i className="bi bi-receipt" />}
                 </NavLink>
@@ -166,32 +141,34 @@ const Sidebar = () => {
                   {!isOpen && <i className="bi bi-building" />}
                 </NavLink>
 
-                {/* NEW: Logs tab */}
+                {/* ✅ NEW: Survey Returns (placeholder) */}
                 <NavLink
-                  to="/logs"
+                  to="/surveyreturns"
                   className={navClass}
-                  onClick={onNavigate("/logs")}
+                  onClick={onNavigate("/surveyreturns")}
                 >
+                  {isOpen && (
+                    <span className="d-flex align-items-center">
+                      Survey Returns
+                    </span>
+                  )}
+                  {!isOpen && <i className="bi bi-journal-text" />}
+                </NavLink>
+
+                {/* Logs */}
+                <NavLink to="/logs" className={navClass} onClick={onNavigate("/logs")}>
                   {isOpen && "Logs"}
                   {!isOpen && <i className="bi bi-clipboard-data" />}
                 </NavLink>
               </div>
             </Collapse>
 
-            <NavLink
-              to="/settings"
-              className={navClass}
-              onClick={onNavigate("/settings")}
-            >
+            <NavLink to="/settings" className={navClass} onClick={onNavigate("/settings")}>
               <i className="bi bi-gear me-2" />
               {isOpen && "Settings"}
             </NavLink>
 
-            <a
-              href="#logout"
-              className="nav-link mt-auto"
-              onClick={handleLogout}
-            >
+            <a href="#logout" className="nav-link mt-auto" onClick={handleLogout}>
               <i className="bi bi-box-arrow-right me-2" />
               {isOpen && "Logout"}
             </a>
