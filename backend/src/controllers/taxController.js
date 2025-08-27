@@ -1,19 +1,23 @@
-// src/controllers/taxController.js
 import { database } from "../config/database.js";
 import { formatDate } from "../lib/utils.js";
 
-/** GET /api/tax (optionally filter by parcelId or lotNo+barangay) */
+// Helpers
+const b = (v) => (v ? 1 : 0); // boolean -> tinyint(1)
+const maybe = (v) => (v === undefined || v === "" ? null : v);
+
+/**
+ * GET /api/tax
+ * Optional filters: ?lotNo=...&barangay=...
+ * (parcelId is intentionally NOT supported because the table has no parcelId column)
+ */
 export async function getAll(req, res) {
   try {
-    const { parcelId, lotNo, barangay } = req.query;
+    const { lotNo, barangay } = req.query;
 
     let sql = "SELECT * FROM tax_forms";
     const params = [];
 
-    if (parcelId) {
-      sql += " WHERE parcelId = ?";
-      params.push(parcelId);
-    } else if (lotNo) {
+    if (lotNo) {
       sql += " WHERE lotNo = ?";
       params.push(lotNo);
       if (barangay) {
@@ -33,9 +37,12 @@ export async function getAll(req, res) {
   }
 }
 
-/** POST /api/tax */
+/**
+ * POST /api/tax
+ * Insert WITHOUT parcelId (column does not exist in schema)
+ */
 export async function addNew(req, res) {
-  const data = req.body;
+  const d = req.body || {};
   try {
     const sql = `
       INSERT INTO tax_forms (
@@ -43,43 +50,43 @@ export async function addNew(req, res) {
         administrator, adminAddress, north, east, south, west,
         propertyIndexNo, subdivision, phase, lotNo, tdPrintedNo,
         houseNo, street, landmark, barangay, barangayOnPrint, barangayText,
-        octNo, dated, surveyNo, cadLotNo, lotNo2, blockNo, parcelId
+        octNo, dated, surveyNo, cadLotNo, lotNo2, blockNo
       )
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `;
 
     const [result] = await database.query(sql, [
-      data.arpNo,
-      data.tdPrinted,
-      data.municipalCode,
-      data.accountNo,
-      data.ownerName,
-      data.ownerAddress,
-      data.administrator,
-      data.adminAddress,
-      data.north,
-      data.east,
-      data.south,
-      data.west,
-      data.propertyIndexNo,
-      data.subdivision,
-      data.phase,
-      data.lotNo,
-      data.tdPrintedNo,
-      data.houseNo,
-      data.street,
-      data.landmark,
-      data.barangay,
-      data.barangayOnPrint,
-      data.barangayText,
-      data.octNo,
-      formatDate(data.dated) || null,
-      data.surveyNo,
-      data.cadLotNo,
-      data.lotNo2,
-      data.blockNo,
-      data.parcelId || null
+      maybe(d.arpNo),
+      b(d.tdPrinted),
+      b(d.municipalCode),
+      maybe(d.accountNo),
+      maybe(d.ownerName),
+      maybe(d.ownerAddress),
+      maybe(d.administrator),
+      maybe(d.adminAddress),
+      maybe(d.north),
+      maybe(d.east),
+      maybe(d.south),
+      maybe(d.west),
+      maybe(d.propertyIndexNo),
+      maybe(d.subdivision),
+      maybe(d.phase),
+      maybe(d.lotNo),
+      maybe(d.tdPrintedNo),
+      maybe(d.houseNo),
+      maybe(d.street),
+      maybe(d.landmark),
+      maybe(d.barangay),
+      b(d.barangayOnPrint),
+      maybe(d.barangayText),
+      maybe(d.octNo),
+      formatDate(d.dated) || null,
+      maybe(d.surveyNo),
+      maybe(d.cadLotNo),
+      maybe(d.lotNo2),
+      maybe(d.blockNo),
     ]);
+
     res.json({ message: "Tax added successfully", insertId: result.insertId });
   } catch (err) {
     console.error("addNew error:", err);
@@ -87,7 +94,9 @@ export async function addNew(req, res) {
   }
 }
 
-/** GET /api/tax/:id */
+/**
+ * GET /api/tax/:id
+ */
 export async function getById(req, res) {
   try {
     const [rows] = await database.execute(
@@ -104,10 +113,13 @@ export async function getById(req, res) {
   }
 }
 
-/** PUT /api/tax/:id */
+/**
+ * PUT /api/tax/:id
+ * Update WITHOUT parcelId (column does not exist in schema)
+ */
 export async function editById(req, res) {
   try {
-    const data = req.body;
+    const d = req.body || {};
     const { id } = req.params;
 
     const sql = `
@@ -116,42 +128,41 @@ export async function editById(req, res) {
         administrator = ?, adminAddress = ?, north = ?, east = ?, south = ?, west = ?,
         propertyIndexNo = ?, subdivision = ?, phase = ?, lotNo = ?, tdPrintedNo = ?,
         houseNo = ?, street = ?, landmark = ?, barangay = ?, barangayOnPrint = ?, barangayText = ?,
-        octNo = ?, dated = ?, surveyNo = ?, cadLotNo = ?, lotNo2 = ?, blockNo = ?, parcelId = ?
+        octNo = ?, dated = ?, surveyNo = ?, cadLotNo = ?, lotNo2 = ?, blockNo = ?
       WHERE id = ?
     `;
 
     const [result] = await database.query(sql, [
-      data.arpNo,
-      data.tdPrinted,
-      data.municipalCode,
-      data.accountNo,
-      data.ownerName,
-      data.ownerAddress,
-      data.administrator,
-      data.adminAddress,
-      data.north,
-      data.east,
-      data.south,
-      data.west,
-      data.propertyIndexNo,
-      data.subdivision,
-      data.phase,
-      data.lotNo,
-      data.tdPrintedNo,
-      data.houseNo,
-      data.street,
-      data.landmark,
-      data.barangay,
-      data.barangayOnPrint,
-      data.barangayText,
-      data.octNo,
-      formatDate(data.dated) || null,
-      data.surveyNo,
-      data.cadLotNo,
-      data.lotNo2,
-      data.blockNo,
-      data.parcelId || null,
-      id
+      maybe(d.arpNo),
+      b(d.tdPrinted),
+      b(d.municipalCode),
+      maybe(d.accountNo),
+      maybe(d.ownerName),
+      maybe(d.ownerAddress),
+      maybe(d.administrator),
+      maybe(d.adminAddress),
+      maybe(d.north),
+      maybe(d.east),
+      maybe(d.south),
+      maybe(d.west),
+      maybe(d.propertyIndexNo),
+      maybe(d.subdivision),
+      maybe(d.phase),
+      maybe(d.lotNo),
+      maybe(d.tdPrintedNo),
+      maybe(d.houseNo),
+      maybe(d.street),
+      maybe(d.landmark),
+      maybe(d.barangay),
+      b(d.barangayOnPrint),
+      maybe(d.barangayText),
+      maybe(d.octNo),
+      formatDate(d.dated) || null,
+      maybe(d.surveyNo),
+      maybe(d.cadLotNo),
+      maybe(d.lotNo2),
+      maybe(d.blockNo),
+      id,
     ]);
 
     if (result.affectedRows === 0) {
@@ -164,40 +175,48 @@ export async function editById(req, res) {
   }
 }
 
-/** GET /api/tax/lookup?parcelId=... | ?lotNo=...&barangay=... */
+/**
+ * GET /api/tax/lookup?lotNo=...&barangay=...
+ * parcelId LOOKUP IS NOT SUPPORTED by current DB schema. If a client sends parcelId
+ * without lotNo, we return 400 explaining the limitation.
+ */
 export async function lookup(req, res) {
   try {
     const { parcelId, lotNo, barangay } = req.query;
 
-    if (!parcelId && !lotNo) {
-      return res.status(400).json({ error: "parcelId or lotNo is required" });
+    if (parcelId && !lotNo) {
+      return res.status(400).json({
+        error: "parcelId lookup is not supported by current schema; provide lotNo (and optional barangay)",
+      });
     }
 
-    let sql = "";
-    let params = [];
-    if (parcelId) {
-      sql = "SELECT id FROM tax_forms WHERE parcelId = ? LIMIT 1";
-      params = [parcelId];
-    } else {
-      sql = "SELECT id FROM tax_forms WHERE lotNo = ?";
-      params = [lotNo];
-      if (barangay) {
-        sql += " AND barangay = ?";
-        params.push(barangay);
-      }
-      sql += " LIMIT 1";
+    if (!lotNo) {
+      return res.status(400).json({ error: "lotNo is required" });
     }
+
+    let sql = "SELECT id FROM tax_forms WHERE lotNo = ?";
+    const params = [lotNo];
+    if (barangay) {
+      sql += " AND barangay = ?";
+      params.push(barangay);
+    }
+    sql += " LIMIT 1";
 
     const [rows] = await database.query(sql, params);
     if (!rows || rows.length === 0) {
       return res.status(404).json({ error: "Not found" });
     }
+
     res.json({ id: rows[0].id });
   } catch (err) {
     console.error("lookup error:", err);
     res.status(500).json({ error: err.message });
   }
 }
+
+/**
+ * DELETE /api/tax/:id
+ */
 export async function removeById(req, res) {
   try {
     const { id } = req.params;
@@ -207,6 +226,7 @@ export async function removeById(req, res) {
     }
     res.json({ message: "Deleted successfully" });
   } catch (err) {
+    console.error("removeById error:", err);
     res.status(500).json({ error: err.message });
   }
 }
