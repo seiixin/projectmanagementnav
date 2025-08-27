@@ -6,6 +6,7 @@ import {
   getById,
   editById,
   lookup,
+  removeById,   // ✅ import delete function
 } from "../controllers/taxController.js";
 
 const router = express.Router();
@@ -16,5 +17,6 @@ router.get("/lookup", lookup);
 router.post("/", addNew);
 router.get("/:id", getById);
 router.put("/:id", editById);
+router.delete("/:id", removeById);  // ✅ new delete endpoint
 
 export default router;

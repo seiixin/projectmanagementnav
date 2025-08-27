@@ -22,16 +22,16 @@ async function showRedirectModal(parcelId) {
       allowEscapeKey: true,
     });
     return !!res.isConfirmed;
-  } catch (e) {
+  } catch {
     return window.confirm(`Redirecting to: ${parcelId}. Continue?`);
   }
 }
 
-async function showInfo(message) {
+async function showInfo(message, icon = "info") {
   try {
     const { default: Swal } = await import("sweetalert2");
-    await Swal.fire({ title: "Notice", text: message, icon: "info" });
-  } catch (e) {
+    await Swal.fire({ title: "Notice", text: message, icon });
+  } catch {
     alert(message);
   }
 }
@@ -41,12 +41,11 @@ export default function TaxList() {
   const [taxes, setTaxes] = useState([]);
   const [navBusyId, setNavBusyId] = useState(null);
 
-  // fetch taxes
   const fetchTaxes = async () => {
     try {
       const res = await api.get("/tax");
       setTaxes(Array.isArray(res.data) ? res.data : []);
-      localStorage.removeItem("taxId"); // leave edit mode
+      localStorage.removeItem("taxId");
     } catch (error) {
       console.log("error fetching data:", error);
       setTaxes([]);
@@ -66,14 +65,10 @@ export default function TaxList() {
 
   const handleViewOnMap = async (tax) => {
     setNavBusyId(tax.id);
-
-    // Try to get ParcelId straight from the tax row
     let parcelId = toStr(tax.parcelId ?? tax.ParcelId ?? tax.parcelID ?? "");
-
     const lot = up(tax.lotNo ?? tax.lotNo2 ?? tax.LotNumber ?? "");
     const brgy = up(tax.barangay ?? tax.BarangayNa ?? "");
 
-    // If missing ParcelId, try to infer from /ibaan using LotNumber + Barangay
     if (!parcelId && (lot || brgy)) {
       try {
         const res = await api.get("/ibaan");
@@ -93,7 +88,6 @@ export default function TaxList() {
       }
     }
 
-    // If we have a ParcelId → confirm then deep-link (MapPage will auto-open the popup)
     if (parcelId) {
       const ok = await showRedirectModal(parcelId);
       if (ok) navigate(`/${encodeURIComponent(parcelId)}`);
@@ -101,7 +95,6 @@ export default function TaxList() {
       return;
     }
 
-    // Fallback: no ParcelId → focus by lot/brgy on root map
     const payload = {
       parcelId: "",
       lotNo: lot,
@@ -123,14 +116,31 @@ export default function TaxList() {
   };
 
   const handleDelete = async (tax) => {
-    if (!window.confirm(`Delete tax form for ${tax.ownerName}?`)) return;
     try {
+      const { default: Swal } = await import("sweetalert2");
+      const res = await Swal.fire({
+        title: "Delete tax form?",
+        html: `This will permanently delete the tax form for <strong>${tax.ownerName}</strong>.`,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonText: "Yes, delete",
+        cancelButtonText: "Cancel",
+        confirmButtonColor: "#d33",
+        reverseButtons: true,
+      });
+
+      if (!res.isConfirmed) return;
+
       await api.delete(`/tax/${tax.id}`);
-      alert("Tax form deleted successfully.");
+      await Swal.fire({
+        title: "Deleted",
+        text: "Tax form deleted successfully.",
+        icon: "success",
+      });
       fetchTaxes();
     } catch (error) {
       console.error("delete failed", error);
-      alert("Failed to delete tax form.");
+      await showInfo("Failed to delete tax form.", "error");
     }
   };
 

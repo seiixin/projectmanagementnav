@@ -33,10 +33,30 @@ async function showInfo(message) {
   }
 }
 
+async function confirmDelete(pid) {
+  try {
+    const { default: Swal } = await import("sweetalert2");
+    const res = await Swal.fire({
+      title: "Delete parcel?",
+      html: `This will permanently delete <strong>Parcel ID ${pid}</strong>.`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonText: "Yes, delete",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#d33",
+      reverseButtons: true,
+    });
+    return !!res.isConfirmed;
+  } catch {
+    return window.confirm(`Delete Parcel ID ${pid}? This cannot be undone.`);
+  }
+}
+
 const LandParcelList = () => {
   const navigate = useNavigate();
   const [parcels, setParcels] = useState([]);
   const [navBusyId, setNavBusyId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
   const toStr = (v) => (v == null ? "" : String(v).trim());
 
@@ -63,7 +83,6 @@ const LandParcelList = () => {
 
   // ✅ Same behavior as Parcel/TaxList "View on Map" with confirmation modal
   const handleViewOnMap = async (parcel) => {
-    // Be generous about field names
     const pid = toStr(
       parcel.parcelID ?? parcel.ParcelId ?? parcel.parcelId ?? parcel.PARCELID ?? ""
     );
@@ -83,9 +102,34 @@ const LandParcelList = () => {
     setNavBusyId(null);
   };
 
-  // (still a placeholder)
+  // ✅ Real delete handler (calls DELETE /landparcel/:id)
   const handleDelete = async (parcel) => {
-    await showInfo(`Delete (TEMP): Would delete parcelID=${parcel.parcelID}`);
+    const pid =
+      parcel.parcelID ?? parcel.ParcelId ?? parcel.parcelId ?? parcel.PARCELID;
+    if (!pid) {
+      await showInfo("This row has no Parcel ID to delete.");
+      return;
+    }
+
+    const ok = await confirmDelete(pid);
+    if (!ok) return;
+
+    setDeletingId(pid);
+    try {
+      await api.delete(`/landparcel/${encodeURIComponent(pid)}`);
+      // Optimistically remove from UI
+      setParcels((prev) => prev.filter((p) => {
+        const curId = p.parcelID ?? p.ParcelId ?? p.parcelId ?? p.PARCELID;
+        return String(curId) !== String(pid);
+      }));
+      await showInfo(`Parcel ${pid} deleted successfully.`);
+    } catch (err) {
+      console.error("delete error", err);
+      const msg = err?.response?.data?.error || err?.message || "Delete failed";
+      await showInfo(`Failed to delete Parcel ${pid}: ${msg}`);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -104,16 +148,18 @@ const LandParcelList = () => {
               <th>Barangay</th>
               <th>Municipality</th>
               <th>Zip Code</th>
-              <th style={{ minWidth: 260 }}>Actions</th>
+              <th style={{ minWidth: 300 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {parcels.map((parcel) => {
-              const rowPid = parcel.parcelID ?? parcel.ParcelId ?? parcel.parcelId;
-              const busy = navBusyId === rowPid;
+              const rowPid = parcel.parcelID ?? parcel.ParcelId ?? parcel.parcelId ?? parcel.PARCELID;
+              const busyNav = navBusyId === rowPid;
+              const busyDel = deletingId === rowPid;
+
               return (
-                <tr key={parcel.parcelID}>
-                  <td>{parcel.parcelID}</td>
+                <tr key={rowPid ?? Math.random()}>
+                  <td>{rowPid}</td>
                   <td>{parcel.StreetAddress}</td>
                   <td>{parcel.Barangay}</td>
                   <td>{parcel.Municipality}</td>
@@ -124,14 +170,15 @@ const LandParcelList = () => {
                         variant="secondary"
                         size="sm"
                         onClick={() => handleViewOnMap(parcel)}
-                        disabled={busy}
+                        disabled={busyNav || busyDel}
                       >
-                        {busy ? "Opening…" : "View on Map"}
+                        {busyNav ? "Opening…" : "View on Map"}
                       </Button>
                       <Button
                         variant="primary"
                         size="sm"
                         onClick={() => handleEdit(parcel)}
+                        disabled={busyDel}
                       >
                         Edit
                       </Button>
@@ -139,8 +186,9 @@ const LandParcelList = () => {
                         variant="danger"
                         size="sm"
                         onClick={() => handleDelete(parcel)}
+                        disabled={busyDel}
                       >
-                        Delete
+                        {busyDel ? "Deleting…" : "Delete"}
                       </Button>
                     </div>
                   </td>

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { MapContainer, TileLayer, GeoJSON, LayersControl, useMap } from "react-leaflet";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { createRoot } from "react-dom/client";
+import { createPortal } from "react-dom";
 import L from "leaflet";
 import api from "../../lib/axios.js";
 import "leaflet/dist/leaflet.css";
+
 
 // ensure marker assets resolve (even if we don't drop pins)
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -30,187 +31,182 @@ function SearchControl({
   setUserCollapsed,
 }) {
   const map = useMap();
+  const controlRef = useRef(null);
+  const containerRef = useRef(null);
 
-  // ✅ No leaflet-bar here (we add our own class)
-  const containerRef = useRef(L.DomUtil.create("div", "leaflet-control custom-search-ctl"));
-  const rootRef = useRef(null);
-
+  // Create a Leaflet control container ONCE and attach to the map
   useEffect(() => {
+    if (!map) return;
+
+    // make a fresh container div
+    const container = L.DomUtil.create("div", "leaflet-control custom-search-ctl");
+    containerRef.current = container;
+
+    // block map interactions from the control
     const Control = L.Control.extend({
       onAdd: () => {
-        L.DomEvent.disableClickPropagation(containerRef.current);
-        L.DomEvent.disableScrollPropagation(containerRef.current);
-        return containerRef.current;
+        L.DomEvent.disableClickPropagation(container);
+        L.DomEvent.disableScrollPropagation(container);
+        // strip any default chrome
+        container.style.background = "transparent";
+        container.style.border = "0";
+        container.style.boxShadow = "none";
+        return container;
       },
       onRemove: () => {},
     });
+
     const control = new Control({ position: "topright" });
+    controlRef.current = control;
     map.addControl(control);
 
-    rootRef.current = createRoot(containerRef.current);
-
-    // ✅ Strip any default chrome, just in case
-    containerRef.current.style.background = "transparent";
-    containerRef.current.style.border = "0";
-    containerRef.current.style.boxShadow = "none";
-
     return () => {
-      if (rootRef.current) {
-        rootRef.current.unmount();
-        rootRef.current = null;
-      }
-      map.removeControl(control);
+      // remove the control from the map (React portal will unmount naturally)
+      try { map.removeControl(controlRef.current); } catch {}
+      controlRef.current = null;
+      containerRef.current = null;
     };
   }, [map]);
 
   // Auto-open when text exists unless user collapsed
+  const hasText = (searchPid || "").trim().length > 0;
   useEffect(() => {
-    const hasText = (searchPid || "").trim().length > 0;
     if (hasText && !userCollapsed && !showSearch) setShowSearch(true);
-  }, [searchPid, userCollapsed, showSearch, setShowSearch]);
+  }, [hasText, userCollapsed, showSearch, setShowSearch]);
 
-  useEffect(() => {
-    if (!rootRef.current) return;
+  const visible = !userCollapsed && (showSearch || hasText);
 
-    const hasText = (searchPid || "").trim().length > 0;
-    const visible = !userCollapsed && (showSearch || hasText);
+  const IconButton = (
+    <button
+      onClick={() => {
+        setUserCollapsed(false);
+        setShowSearch(true);
+      }}
+      title="Search parcels"
+      aria-label="Open search"
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: "50%",
+        border: 0, // borderless
+        outline: "none",
+        background: "#fff",
+        cursor: "pointer",
+        boxShadow: "0 2px 8px rgba(0,0,0,.18)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 18,
+      }}
+    >
+      🔍
+    </button>
+  );
 
-    const IconButton = (
+  const Panel = (
+    <div
+      style={{
+        padding: 8,
+        background: "#fff",
+        border: 0, // outer borderless
+        borderRadius: 12,
+        boxShadow: "0 6px 18px rgba(0,0,0,.16)",
+        display: "flex",
+        gap: 8,
+        alignItems: "center",
+        flexDirection: "row",
+      }}
+    >
+      <form onSubmit={submitSearch} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ position: "relative" }}>
+          <input
+            type="text"
+            placeholder="Enter Parcel ID…"
+            value={searchPid}
+            onChange={(e) => setSearchPid(e.target.value)}
+            aria-label="Parcel ID"
+            style={{
+              width: 240,
+              padding: "8px 36px 8px 12px",
+              borderRadius: 10,
+              border: "1px solid #c7ccd1",
+              outline: "none",
+            }}
+          />
+          {hasText && (
+            <button
+              type="button"
+              aria-label="Clear"
+              onClick={() => setSearchPid("")}
+              style={{
+                position: "absolute",
+                right: 8,
+                top: "50%",
+                transform: "translateY(-50%)",
+                width: 24,
+                height: 24,
+                borderRadius: 12,
+                border: 0, // chip borderless
+                background: "#fff",
+                cursor: "pointer",
+                lineHeight: "20px",
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
+        <button
+          type="submit"
+          disabled={!hasText}
+          style={{
+            padding: "8px 14px",
+            borderRadius: 10,
+            border: 0, // borderless button
+            outline: "none",
+            background: hasText ? "#0b5faa" : "#9bb8d4",
+            color: "#fff",
+            fontWeight: 700,
+            cursor: hasText ? "pointer" : "not-allowed",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+          title={hasText ? "Search" : "Type a Parcel ID first"}
+        >
+          <span style={{ fontSize: 16 }}>🔎</span> Search
+        </button>
+      </form>
+
       <button
         onClick={() => {
-          setUserCollapsed(false);
-          setShowSearch(true);
+          setShowSearch(false);
+          setUserCollapsed(true);
         }}
-        title="Search parcels"
-        aria-label="Open search"
+        title="Hide search"
+        aria-label="Hide search"
         style={{
-          width: 44,
-          height: 44,
-          borderRadius: "50%",
-          border: 0,                              // ✅ no line border
-          outline: "none",                        // (optional) remove outline
+          padding: "8px 10px",
+          borderRadius: 10,
+          border: 0, // borderless hide button
           background: "#fff",
           cursor: "pointer",
-          boxShadow: "0 2px 8px rgba(0,0,0,.18)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 18,
         }}
       >
-        🔍
+        Hide
       </button>
-    );
+    </div>
+  );
 
-    const Panel = (
-      <div
-        style={{
-          padding: 8,
-          background: "#fff",
-          border: 0,                              // ✅ no outer border
-          borderRadius: 12,
-          boxShadow: "0 6px 18px rgba(0,0,0,.16)",
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          flexDirection: "row",
-        }}
-      >
-        <form onSubmit={submitSearch} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ position: "relative" }}>
-            <input
-              type="text"
-              placeholder="Enter Parcel ID…"
-              value={searchPid}
-              onChange={(e) => setSearchPid(e.target.value)}
-              aria-label="Parcel ID"
-              style={{
-                width: 240,
-                padding: "8px 36px 8px 12px",
-                borderRadius: 10,
-                border: "1px solid #c7ccd1",
-                outline: "none",
-              }}
-            />
-            {hasText && (
-              <button
-                type="button"
-                aria-label="Clear"
-                onClick={() => setSearchPid("")}
-                style={{
-                  position: "absolute",
-                  right: 8,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: 24,
-                  height: 24,
-                  borderRadius: 12,
-                  border: 0,                        // ✅ no little chip border
-                  background: "#fff",
-                  cursor: "pointer",
-                  lineHeight: "20px",
-                }}
-              >
-                ×
-              </button>
-            )}
-          </div>
-          <button
-            type="submit"
-            disabled={!hasText}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 10,
-              border: 0,                            // ✅ search button borderless
-              outline: "none",                      // (optional) remove focus ring
-              background: hasText ? "#0b5faa" : "#9bb8d4",
-              color: "#fff",
-              fontWeight: 700,
-              cursor: hasText ? "pointer" : "not-allowed",
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-            title={hasText ? "Search" : "Type a Parcel ID first"}
-          >
-            <span style={{ fontSize: 16 }}>🔎</span> Search
-          </button>
-        </form>
+  // Render the UI into the Leaflet control using a portal (NO extra React root)
+  const ui = (
+    <>
+      <style>{`.custom-search-ctl { background: transparent !important; border: 0 !important; box-shadow: none !important; }`}</style>
+      <div style={{ marginTop: 8 }}>{visible ? Panel : IconButton}</div>
+    </>
+  );
 
-        <button
-          onClick={() => {
-            setShowSearch(false);
-            setUserCollapsed(true);
-          }}
-          title="Hide search"
-          aria-label="Hide search"
-          style={{
-            padding: "8px 10px",
-            borderRadius: 10,
-            border: 0,                              // ✅ hide button borderless (optional)
-            background: "#fff",
-            cursor: "pointer",
-          }}
-        >
-          Hide
-        </button>
-      </div>
-    );
-
-    const ui = (
-      <>
-        {/* Ensure our control never gets Leaflet's default border/shadow */}
-        <style>
-          {`.custom-search-ctl { background: transparent !important; border: 0 !important; box-shadow: none !important; }`}
-        </style>
-        <div style={{ marginTop: 8 }}>{visible ? Panel : IconButton}</div>
-      </>
-    );
-
-    rootRef.current.render(ui);
-  }, [showSearch, searchPid, userCollapsed, setShowSearch, setUserCollapsed, setSearchPid, submitSearch]);
-
-  return null;
+  return containerRef.current ? createPortal(ui, containerRef.current) : null;
 }
 
 export default function MapPage() {
@@ -744,7 +740,7 @@ export default function MapPage() {
           </LayersControl.BaseLayer>
         </LayersControl>
 
-        {/* 👇 Custom control renders below the LayersControl in top-right */}
+        {/* 👇 Custom control renders below the LayersControl in top-right via a React portal */}
         <SearchControl
           showSearch={showSearch}
           setShowSearch={setShowSearch}
