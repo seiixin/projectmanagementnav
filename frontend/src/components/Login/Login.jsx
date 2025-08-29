@@ -14,8 +14,8 @@ const LoginForm = ({ onLogin }) => {
       const res = await api.post("/user/login", form);
       localStorage.setItem("token", res.data.token);
       if(res.data.result === 0) alert(res.data.message);
-      navigate("/dashboard");
-      window.location = "/dashboard"; 
+      navigate("/");
+      window.location = "/"; 
       console.log('login')
     } catch (err) {
       alert(err.response.data.error);

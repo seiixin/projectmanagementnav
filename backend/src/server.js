@@ -1,7 +1,7 @@
-// backend/src/server.js
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import morgan from "morgan";
 import { database } from "./config/database.js";
 
 // Routes
@@ -14,38 +14,22 @@ import taxRoutes from "./routes/taxRoute.js";
 import landAppraisalRoutes from "./routes/landAppraisalRoute.js";
 import landAssessmentRoutes from "./routes/landAssessmentRoutes.js";
 import taxOtherDetailsRoutes from "./routes/taxOtherDetailsRoutes.js";
+// ✅ NEW
 import auditLogsRoutes from "./routes/auditLogsRoute.js";
 
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || api-gis.gghsoftwaredev.com;
 
-// ✅ CORS allow only your React app + localhost dev
-const allowedOrigins = [
-  "https://app-gis.gghsoftwaredev.com",
-  "http://localhost:5173",
-];
-
+// Middlewares
 app.set("trust proxy", 1);
-app.use(
-  cors({
-    origin: (origin, cb) => {
-      if (!origin || allowedOrigins.includes(origin)) {
-        return cb(null, true);
-      }
-      return cb(new Error("CORS not allowed"));
-    },
-    credentials: true,
-  })
-);
-
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(express.json({ limit: "10mb" }));
+app.use(morgan("dev"));
 
 // Health
-app.get("/api/health", (_req, res) =>
-  res.json({ ok: true, ts: new Date().toISOString() })
-);
+app.get("/api/health", (_req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 
 // Try DB ping, but DON'T exit on error (just warn)
 try {
@@ -65,20 +49,17 @@ app.use("/api/tax", taxRoutes);
 app.use("/api/landappraisal", landAppraisalRoutes);
 app.use("/api/landassessment", landAssessmentRoutes);
 app.use("/api/taxotherdetails", taxOtherDetailsRoutes);
+// ✅ This fixes your 404 + network errors for logs
 app.use("/api/audit-logs", auditLogsRoutes);
 
 // 404 + error handlers
-app.use((req, res) =>
-  res.status(404).json({ error: "Not found", path: req.originalUrl })
-);
+app.use((req, res) => res.status(404).json({ error: "Not found", path: req.originalUrl }));
 app.use((err, _req, res, _next) => {
   console.error("Unhandled error:", err);
-  res
-    .status(500)
-    .json({ error: err?.message || "Server error", stack: process.env.NODE_ENV === "development" ? err.stack : undefined });
+  res.status(500).json({ error: err?.message || "Server error" });
 });
 
 // Start
 app.listen(port, () => {
-  console.log(`🚀 Server running on port ${port}`);
+  console.log(`🚀 Server on api-gis.gghsoftwaredev.com:${port}`);
 });
