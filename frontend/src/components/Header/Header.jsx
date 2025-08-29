@@ -5,7 +5,7 @@ const Header = () => {
   return (
     <>
       <header className="Header">
-        <h2>Project Name</h2>
+        <h2>Project Management System</h2>
       </header>
     </>
   );
