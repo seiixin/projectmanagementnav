@@ -702,43 +702,44 @@ export default function MapPage() {
         wheelPxPerZoomLevel={160}
         whenCreated={setMapObj}
       >
-        <LayersControl position="topright">
-          <LayersControl.BaseLayer checked name="OpenStreetMap">
-            <TileLayer
-              attribution="&copy; OpenStreetMap contributors"
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={MAX_ZOOM}
-            />
-          </LayersControl.BaseLayer>
+<LayersControl position="topright">
+  <LayersControl.BaseLayer name="OpenStreetMap">
+    <TileLayer
+      attribution="&copy; OpenStreetMap contributors"
+      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      maxZoom={MAX_ZOOM}
+    />
+  </LayersControl.BaseLayer>
 
-          <LayersControl.BaseLayer name="Mapbox Streets">
-            <TileLayer
-              url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
-              attribution="&copy; Mapbox &copy; OpenStreetMap"
-              maxZoom={MAX_ZOOM}
-              tileSize={512}
-              zoomOffset={-1}
-            />
-          </LayersControl.BaseLayer>
+  <LayersControl.BaseLayer name="Mapbox Streets">
+    <TileLayer
+      url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
+      attribution="&copy; Mapbox &copy; OpenStreetMap"
+      maxZoom={MAX_ZOOM}
+      tileSize={512}
+      zoomOffset={-1}
+    />
+  </LayersControl.BaseLayer>
 
-          <LayersControl.BaseLayer name="Mapbox Satellite">
-            <TileLayer
-              url={`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
-              attribution="Imagery © Mapbox, © Maxar"
-              maxZoom={MAX_ZOOM}
-              tileSize={512}
-              zoomOffset={-1}
-            />
-          </LayersControl.BaseLayer>
+  <LayersControl.BaseLayer name="Mapbox Satellite">
+    <TileLayer
+      url={`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
+      attribution="Imagery © Mapbox, © Maxar"
+      maxZoom={MAX_ZOOM}
+      tileSize={512}
+      zoomOffset={-1}
+    />
+  </LayersControl.BaseLayer>
 
-          <LayersControl.BaseLayer name="Esri World Imagery">
-            <TileLayer
-              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-              attribution="Tiles © Esri"
-              maxZoom={MAX_ZOOM}
-            />
-          </LayersControl.BaseLayer>
-        </LayersControl>
+  {/* ✅ Make Esri default by putting `checked` here */}
+  <LayersControl.BaseLayer checked name="Esri World Imagery">
+    <TileLayer
+      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+      attribution="Tiles © Esri"
+      maxZoom={MAX_ZOOM}
+    />
+  </LayersControl.BaseLayer>
+</LayersControl>
 
         {/* 👇 Custom control renders below the LayersControl in top-right via a React portal */}
         <SearchControl
