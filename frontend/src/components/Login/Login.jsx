@@ -26,7 +26,7 @@ const LoginForm = ({ onLogin }) => {
 
   return (
     <div className="container mt-11 Login" style={{ maxWidth: '400px' }}>
-      <h3 className="mb-4 text-center">Login</h3>
+      <h3 className="mb-4 text-center">LOGIN</h3>
       <form onSubmit={handleSubmit}>
         <div className="mb-3">
           <label>Username</label>
