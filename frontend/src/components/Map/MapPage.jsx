@@ -38,16 +38,13 @@ function SearchControl({
   useEffect(() => {
     if (!map) return;
 
-    // make a fresh container div
     const container = L.DomUtil.create("div", "leaflet-control custom-search-ctl");
     containerRef.current = container;
 
-    // block map interactions from the control
     const Control = L.Control.extend({
       onAdd: () => {
         L.DomEvent.disableClickPropagation(container);
         L.DomEvent.disableScrollPropagation(container);
-        // strip any default chrome
         container.style.background = "transparent";
         container.style.border = "0";
         container.style.boxShadow = "none";
@@ -61,7 +58,6 @@ function SearchControl({
     map.addControl(control);
 
     return () => {
-      // remove the control from the map (React portal will unmount naturally)
       try { map.removeControl(controlRef.current); } catch {}
       controlRef.current = null;
       containerRef.current = null;
@@ -84,125 +80,178 @@ function SearchControl({
       }}
       title="Search parcels"
       aria-label="Open search"
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: "50%",
-        border: 0, // borderless
-        outline: "none",
-        background: "#fff",
-        cursor: "pointer",
-        boxShadow: "0 2px 8px rgba(0,0,0,.18)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 18,
-      }}
+      className="sp-iconbtn"
     >
       🔍
     </button>
   );
 
-  const Panel = (
-    <div
+const Panel = (
+  <div
+    style={{
+      padding: 8,
+      background: "#fff",
+      border: 0,
+      borderRadius: 12,
+      boxShadow: "0 6px 18px rgba(0,0,0,.16)",
+      display: "flex",
+      flexDirection: "row", // ✅ default row on desktop
+      gap: 8,
+      alignItems: "center",
+      flexWrap: "wrap",     // ✅ allow wrap on small screens
+      maxWidth: "100%",     // ✅ don’t overflow
+    }}
+  >
+    <form
+      onSubmit={submitSearch}
       style={{
-        padding: 8,
-        background: "#fff",
-        border: 0, // outer borderless
-        borderRadius: 12,
-        boxShadow: "0 6px 18px rgba(0,0,0,.16)",
         display: "flex",
+        flex: 1,
         gap: 8,
         alignItems: "center",
-        flexDirection: "row",
+        flexWrap: "wrap",   // ✅ wrap input + button on mobile
       }}
     >
-      <form onSubmit={submitSearch} style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <div style={{ position: "relative" }}>
-          <input
-            type="text"
-            placeholder="Enter Parcel ID…"
-            value={searchPid}
-            onChange={(e) => setSearchPid(e.target.value)}
-            aria-label="Parcel ID"
-            style={{
-              width: 240,
-              padding: "8px 36px 8px 12px",
-              borderRadius: 10,
-              border: "1px solid #c7ccd1",
-              outline: "none",
-            }}
-          />
-          {hasText && (
-            <button
-              type="button"
-              aria-label="Clear"
-              onClick={() => setSearchPid("")}
-              style={{
-                position: "absolute",
-                right: 8,
-                top: "50%",
-                transform: "translateY(-50%)",
-                width: 24,
-                height: 24,
-                borderRadius: 12,
-                border: 0, // chip borderless
-                background: "#fff",
-                cursor: "pointer",
-                lineHeight: "20px",
-              }}
-            >
-              ×
-            </button>
-          )}
-        </div>
-        <button
-          type="submit"
-          disabled={!hasText}
+      <div style={{ position: "relative", flex: 1, minWidth: 160 }}>
+        <input
+          type="text"
+          placeholder="Enter Parcel ID…"
+          value={searchPid}
+          onChange={(e) => setSearchPid(e.target.value)}
+          aria-label="Parcel ID"
           style={{
-            padding: "8px 14px",
+            width: "100%",
+            padding: "8px 36px 8px 12px",
             borderRadius: 10,
-            border: 0, // borderless button
+            border: "1px solid #c7ccd1",
             outline: "none",
-            background: hasText ? "#0b5faa" : "#9bb8d4",
-            color: "#fff",
-            fontWeight: 700,
-            cursor: hasText ? "pointer" : "not-allowed",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
+            fontSize: 14,
           }}
-          title={hasText ? "Search" : "Type a Parcel ID first"}
-        >
-          <span style={{ fontSize: 16 }}>🔎</span> Search
-        </button>
-      </form>
+        />
+        {hasText && (
+          <button
+            type="button"
+            aria-label="Clear"
+            onClick={() => setSearchPid("")}
+            style={{
+              position: "absolute",
+              right: 8,
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: 24,
+              height: 24,
+              borderRadius: 12,
+              border: 0,
+              background: "#fff",
+              cursor: "pointer",
+              lineHeight: "20px",
+            }}
+          >
+            ×
+          </button>
+        )}
+      </div>
 
       <button
-        onClick={() => {
-          setShowSearch(false);
-          setUserCollapsed(true);
-        }}
-        title="Hide search"
-        aria-label="Hide search"
+        type="submit"
+        disabled={!hasText}
         style={{
-          padding: "8px 10px",
+          padding: "8px 14px",
           borderRadius: 10,
-          border: 0, // borderless hide button
-          background: "#fff",
-          cursor: "pointer",
+          border: 0,
+          background: hasText ? "#0b5faa" : "#9bb8d4",
+          color: "#fff",
+          fontWeight: 700,
+          cursor: hasText ? "pointer" : "not-allowed",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          fontSize: 14,
         }}
       >
-        Hide
+        <span style={{ fontSize: 16 }}>🔎</span> Search
       </button>
-    </div>
-  );
+    </form>
+
+    <button
+      onClick={() => {
+        setShowSearch(false);
+        setUserCollapsed(true);
+      }}
+      title="Hide search"
+      aria-label="Hide search"
+      style={{
+        padding: "8px 10px",
+        borderRadius: 10,
+        border: 0,
+        background: "#fff",
+        cursor: "pointer",
+        whiteSpace: "nowrap",
+      }}
+    >
+      Hide
+    </button>
+  </div>
+);
 
   // Render the UI into the Leaflet control using a portal (NO extra React root)
   const ui = (
     <>
-      <style>{`.custom-search-ctl { background: transparent !important; border: 0 !important; box-shadow: none !important; }`}</style>
-      <div style={{ marginTop: 8 }}>{visible ? Panel : IconButton}</div>
+      <style>{`
+        .custom-search-ctl { background: transparent!important; border: 0!important; box-shadow: none!important; }
+        /* keep away from other Leaflet controls */
+        .custom-search-ctl .sp-root { margin-top: 8px; }
+
+        .sp-iconbtn{
+          width: 22px; height: 22px; border-radius: 50%;
+          border: 0; outline: none; background: #fff; cursor: pointer;
+          box-shadow: 0 2px 8px rgba(0,0,0,.18);
+          display: flex; align-items: center; justify-content: center;
+          font-size: 16px; line-height: 1;
+        }
+
+        .sp-card{
+          z-index: 1000; /* sit above basemap controls */
+          padding: 8px; background: #fff; border-radius: 12px;
+          box-shadow: 0 6px 18px rgba(0,0,0,.16);
+          display: grid; gap: 8px;
+          /* Desktop/tablet width cap; still slim */
+          width: clamp(240px, 38vw, 360px);
+        }
+
+        .sp-row{ display: flex; gap: 8px; align-items: center; }
+        .sp-actions{ justify-content: flex-start; flex-wrap: wrap; }
+
+        .sp-btn{
+          padding: 8px 12px; border-radius: 10px; border: 0; outline: none;
+          background: #fff; cursor: pointer; font-size: 14px; font-weight: 700; white-space: nowrap;
+        }
+        .sp-btn--primary{ background: #0b5faa; color: #fff; }
+        .sp-btn--disabled{ background: #9bb8d4; color: #fff; cursor: not-allowed; }
+
+        .sp-inputwrap{ position: relative; width: 100%; }
+        .sp-input{
+          width: 100%;
+          padding: 8px 32px 8px 12px;
+          border-radius: 10px; border: 1px solid #c7ccd1; outline: none; font-size: 14px;
+        }
+        .sp-clear{
+          position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+          width: 22px; height: 22px; border-radius: 11px; border: 0; background: #fff;
+          cursor: pointer; line-height: 1; font-size: 16px;
+        }
+
+        /* Mobile-first stacking & full width comfort */
+        @media (max-width: 520px){
+          .sp-card{
+            width: min(92vw, 380px);
+          }
+          .sp-actions{
+            justify-content: space-between;
+          }
+        }
+      `}</style>
+      <div className="sp-root">{visible ? Panel : IconButton}</div>
     </>
   );
 
