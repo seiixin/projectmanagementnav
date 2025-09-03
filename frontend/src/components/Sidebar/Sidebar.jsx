@@ -149,7 +149,7 @@ const Sidebar = () => {
                 >
                   {isOpen && (
                     <span className="d-flex align-items-center">
-                      Survey Returns
+                      New Lot for tax declaration
                     </span>
                   )}
                   {!isOpen && <i className="bi bi-journal-text" />}

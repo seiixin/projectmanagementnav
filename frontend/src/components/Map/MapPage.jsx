@@ -6,7 +6,6 @@ import L from "leaflet";
 import api from "../../lib/axios.js";
 import "leaflet/dist/leaflet.css";
 
-
 // ensure marker assets resolve (even if we don't drop pins)
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -19,13 +18,16 @@ L.Icon.Default.mergeOptions({
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const toStr = (v) => (v == null ? "" : String(v).trim());
-const normParcelId = (v) => toStr(v);
+const normKey = (v) => toStr(v).toLowerCase();
 
+/* ----------------------- Search Control (Parcel / Lot) ----------------------- */
 function SearchControl({
   showSearch,
   setShowSearch,
-  searchPid,
-  setSearchPid,
+  searchValue,
+  setSearchValue,
+  searchField,
+  setSearchField,
   submitSearch,
   userCollapsed,
   setUserCollapsed,
@@ -34,10 +36,8 @@ function SearchControl({
   const controlRef = useRef(null);
   const containerRef = useRef(null);
 
-  // Create a Leaflet control container ONCE and attach to the map
   useEffect(() => {
     if (!map) return;
-
     const container = L.DomUtil.create("div", "leaflet-control custom-search-ctl");
     containerRef.current = container;
 
@@ -64,8 +64,7 @@ function SearchControl({
     };
   }, [map]);
 
-  // Auto-open when text exists unless user collapsed
-  const hasText = (searchPid || "").trim().length > 0;
+  const hasText = (searchValue || "").trim().length > 0;
   useEffect(() => {
     if (hasText && !userCollapsed && !showSearch) setShowSearch(true);
   }, [hasText, userCollapsed, showSearch, setShowSearch]);
@@ -74,134 +73,111 @@ function SearchControl({
 
   const IconButton = (
     <button
-      onClick={() => {
-        setUserCollapsed(false);
-        setShowSearch(true);
-      }}
+      onClick={() => { setUserCollapsed(false); setShowSearch(true); }}
       title="Search parcels"
       aria-label="Open search"
       className="sp-iconbtn"
-    >
-      🔍
-    </button>
+    >🔍</button>
   );
 
-const Panel = (
-  <div
-    style={{
-      padding: 8,
-      background: "#fff",
-      border: 0,
-      borderRadius: 12,
-      boxShadow: "0 6px 18px rgba(0,0,0,.16)",
-      display: "flex",
-      flexDirection: "row", // ✅ default row on desktop
-      gap: 8,
-      alignItems: "center",
-      flexWrap: "wrap",     // ✅ allow wrap on small screens
-      maxWidth: "100%",     // ✅ don’t overflow
-    }}
-  >
-    <form
-      onSubmit={submitSearch}
+  const Panel = (
+    <div
       style={{
+        padding: 8,
+        background: "#fff",
+        border: 0,
+        borderRadius: 12,
+        boxShadow: "0 6px 18px rgba(0,0,0,.16)",
         display: "flex",
-        flex: 1,
+        flexDirection: "row",
         gap: 8,
         alignItems: "center",
-        flexWrap: "wrap",   // ✅ wrap input + button on mobile
+        flexWrap: "wrap",
+        maxWidth: "100%",
       }}
     >
-      <div style={{ position: "relative", flex: 1, minWidth: 160 }}>
-        <input
-          type="text"
-          placeholder="Enter Parcel ID…"
-          value={searchPid}
-          onChange={(e) => setSearchPid(e.target.value)}
-          aria-label="Parcel ID"
+      <form
+        onSubmit={submitSearch}
+        style={{ display: "flex", flex: 1, gap: 8, alignItems: "center", flexWrap: "wrap" }}
+      >
+        <select
+          value={searchField}
+          onChange={(e) => setSearchField(e.target.value)}
+          aria-label="Search field"
           style={{
-            width: "100%",
-            padding: "8px 36px 8px 12px",
+            padding: "8px 10px",
             borderRadius: 10,
             border: "1px solid #c7ccd1",
-            outline: "none",
             fontSize: 14,
           }}
-        />
-        {hasText && (
-          <button
-            type="button"
-            aria-label="Clear"
-            onClick={() => setSearchPid("")}
+        >
+          <option value="parcel">Parcel ID</option>
+          <option value="lot">Lot Number</option>
+        </select>
+
+        <div style={{ position: "relative", flex: 1, minWidth: 160 }}>
+          <input
+            type="text"
+            placeholder={searchField === "parcel" ? "Enter Parcel ID…" : "Enter Lot Number…"}
+            value={searchValue}
+            onChange={(e) => setSearchValue(e.target.value)}
+            aria-label={searchField === "parcel" ? "Parcel ID" : "Lot Number"}
             style={{
-              position: "absolute",
-              right: 8,
-              top: "50%",
-              transform: "translateY(-50%)",
-              width: 24,
-              height: 24,
-              borderRadius: 12,
-              border: 0,
-              background: "#fff",
-              cursor: "pointer",
-              lineHeight: "20px",
+              width: "100%",
+              padding: "8px 36px 8px 12px",
+              borderRadius: 10,
+              border: "1px solid #c7ccd1",
+              outline: "none",
+              fontSize: 14,
             }}
-          >
-            ×
-          </button>
-        )}
-      </div>
+          />
+          {hasText && (
+            <button
+              type="button"
+              aria-label="Clear"
+              onClick={() => setSearchValue("")}
+              style={{
+                position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
+                width: 24, height: 24, borderRadius: 12, border: 0, background: "#fff",
+                cursor: "pointer", lineHeight: "20px",
+              }}
+            >×</button>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!hasText}
+          style={{
+            padding: "8px 14px",
+            borderRadius: 10,
+            border: 0,
+            background: hasText ? "#0b5faa" : "#9bb8d4",
+            color: "#fff",
+            fontWeight: 700,
+            cursor: hasText ? "pointer" : "not-allowed",
+            display: "flex", alignItems: "center", gap: 8, fontSize: 14,
+          }}
+        >
+          <span style={{ fontSize: 16 }}>🔎</span> Search
+        </button>
+      </form>
 
       <button
-        type="submit"
-        disabled={!hasText}
-        style={{
-          padding: "8px 14px",
-          borderRadius: 10,
-          border: 0,
-          background: hasText ? "#0b5faa" : "#9bb8d4",
-          color: "#fff",
-          fontWeight: 700,
-          cursor: hasText ? "pointer" : "not-allowed",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          fontSize: 14,
-        }}
+        onClick={() => { setShowSearch(false); setUserCollapsed(true); }}
+        title="Hide search" aria-label="Hide search"
+        style={{ padding: "8px 10px", borderRadius: 10, border: 0, background: "#fff", cursor: "pointer", whiteSpace: "nowrap" }}
       >
-        <span style={{ fontSize: 16 }}>🔎</span> Search
+        Hide
       </button>
-    </form>
+    </div>
+  );
 
-    <button
-      onClick={() => {
-        setShowSearch(false);
-        setUserCollapsed(true);
-      }}
-      title="Hide search"
-      aria-label="Hide search"
-      style={{
-        padding: "8px 10px",
-        borderRadius: 10,
-        border: 0,
-        background: "#fff",
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-      }}
-    >
-      Hide
-    </button>
-  </div>
-);
-
-  // Render the UI into the Leaflet control using a portal (NO extra React root)
   const ui = (
     <>
       <style>{`
         .custom-search-ctl { background: transparent!important; border: 0!important; box-shadow: none!important; }
-        /* keep away from other Leaflet controls */
         .custom-search-ctl .sp-root { margin-top: 8px; }
-
         .sp-iconbtn{
           width: 22px; height: 22px; border-radius: 50%;
           border: 0; outline: none; background: #fff; cursor: pointer;
@@ -209,47 +185,7 @@ const Panel = (
           display: flex; align-items: center; justify-content: center;
           font-size: 16px; line-height: 1;
         }
-
-        .sp-card{
-          z-index: 1000; /* sit above basemap controls */
-          padding: 8px; background: #fff; border-radius: 12px;
-          box-shadow: 0 6px 18px rgba(0,0,0,.16);
-          display: grid; gap: 8px;
-          /* Desktop/tablet width cap; still slim */
-          width: clamp(240px, 38vw, 360px);
-        }
-
-        .sp-row{ display: flex; gap: 8px; align-items: center; }
-        .sp-actions{ justify-content: flex-start; flex-wrap: wrap; }
-
-        .sp-btn{
-          padding: 8px 12px; border-radius: 10px; border: 0; outline: none;
-          background: #fff; cursor: pointer; font-size: 14px; font-weight: 700; white-space: nowrap;
-        }
-        .sp-btn--primary{ background: #0b5faa; color: #fff; }
-        .sp-btn--disabled{ background: #9bb8d4; color: #fff; cursor: not-allowed; }
-
-        .sp-inputwrap{ position: relative; width: 100%; }
-        .sp-input{
-          width: 100%;
-          padding: 8px 32px 8px 12px;
-          border-radius: 10px; border: 1px solid #c7ccd1; outline: none; font-size: 14px;
-        }
-        .sp-clear{
-          position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
-          width: 22px; height: 22px; border-radius: 11px; border: 0; background: #fff;
-          cursor: pointer; line-height: 1; font-size: 16px;
-        }
-
-        /* Mobile-first stacking & full width comfort */
-        @media (max-width: 520px){
-          .sp-card{
-            width: min(92vw, 380px);
-          }
-          .sp-actions{
-            justify-content: space-between;
-          }
-        }
+        @media (max-width: 520px){ .sp-card{ width: min(92vw, 380px); } }
       `}</style>
       <div className="sp-root">{visible ? Panel : IconButton}</div>
     </>
@@ -258,6 +194,7 @@ const Panel = (
   return containerRef.current ? createPortal(ui, containerRef.current) : null;
 }
 
+/* --------------------------------- Map Page --------------------------------- */
 export default function MapPage() {
   const { parcelId: routeParcelId } = useParams(); // /:parcelId
   const navigate = useNavigate();
@@ -270,23 +207,33 @@ export default function MapPage() {
 
   // UI for hideable search
   const [showSearch, setShowSearch] = useState(!routeParcelId);
-  const [userCollapsed, setUserCollapsed] = useState(false); // explicit user toggle
-  const [searchPid, setSearchPid] = useState(routeParcelId || "");
+  const [userCollapsed, setUserCollapsed] = useState(false);
+  const [searchValue, setSearchValue] = useState(routeParcelId || "");
+  const [searchField, setSearchField] = useState("parcel"); // "parcel" | "lot"
 
-  // "which parcel should auto-open?"
-  const [pendingPid, setPendingPid] = useState(routeParcelId ? normParcelId(routeParcelId) : "");
-  const pendingPidRef = useRef(pendingPid); // mirror as ref so we can read in render
-  const pendingLayerRef = useRef(null); // layer that matched while rendering
+  // selection & overlay highlight
+  const highlightRef = useRef(null); // L.GeoJSON for persistent selection
+  const [selectedPid, setSelectedPid] = useState("");
 
-  // fast lookups: ParcelId -> Leaflet layer
-  const layersByParcelRef = useRef(new Map());
+  // route-driven selection
+  const [pendingKey, setPendingKey] = useState(routeParcelId ? normKey(routeParcelId) : "");
+  const pendingKeyRef = useRef(pendingKey);
+  const pendingLayerRef = useRef(null);
+
+  // fast lookups
+  const byParcelRef = useRef(new Map()); // normalized ParcelId -> layer
+  const byLotRef = useRef(new Map());    // normalized LotNumber -> array<layer>
 
   const MAX_ZOOM = 19;
   const fallbackCenter = useMemo(() => [13.8, 121.14], []);
   const baseStyle = useMemo(() => ({ color: "#1e73be", weight: 1.25, fillOpacity: 0.22 }), []);
-  const highlightStyle = useMemo(() => ({ color: "#0b5faa", weight: 2, fillOpacity: 0.28 }), []);
+  const hoverStyle = useMemo(() => ({ color: "#0b5faa", weight: 2, fillOpacity: 0.28 }), []);
+  const overlayStyle = useMemo(
+    () => ({ color: "#ff7f0e", weight: 3.5, fillOpacity: 0.28, dashArray: "4,2" }),
+    []
+  );
 
-  // ----------------- load parcels -----------------
+  /* ----------------------------- Load GeoJSON ----------------------------- */
   useEffect(() => {
     (async () => {
       setLoading(true);
@@ -299,11 +246,7 @@ export default function MapPage() {
           .map((row) => {
             let geom = row.geometry;
             if (typeof geom === "string" && geom.trim()) {
-              try {
-                geom = JSON.parse(geom);
-              } catch {
-                geom = null;
-              }
+              try { geom = JSON.parse(geom); } catch { geom = null; }
             }
             if (!geom) return null;
             const { geometry, ...props } = row;
@@ -321,70 +264,69 @@ export default function MapPage() {
     })();
   }, []);
 
-  // keep mirrors in sync
+  /* --------------------- Init persistent highlight layer --------------------- */
   useEffect(() => {
-    pendingPidRef.current = pendingPid;
-  }, [pendingPid]);
+    if (!mapObj) return;
+    if (!highlightRef.current) {
+      highlightRef.current = L.geoJSON(null, {
+        style: overlayStyle,
+        interactive: false,
+        pane: "overlayPane",
+      }).addTo(mapObj);
+    }
+  }, [mapObj, overlayStyle]);
 
-  // keep UI in sync with route
+  // mirrors
+  useEffect(() => { pendingKeyRef.current = pendingKey; }, [pendingKey]);
+
+  // sync UI with route
   useEffect(() => {
-    const pid = routeParcelId ? normParcelId(routeParcelId) : "";
-    setSearchPid(pid);
-    setShowSearch(!pid); // default behavior; SearchControl will auto-open if pid & not user-collapsed
-    setPendingPid(pid);
+    const pidKey = routeParcelId ? normKey(routeParcelId) : "";
+    setSearchValue(routeParcelId || "");
+    setShowSearch(!pidKey);
+    setPendingKey(pidKey);
+    if (pidKey) setSearchField("parcel");
   }, [routeParcelId]);
 
   const getPidFromProps = (p) => {
     const pid = p?.ParcelId ?? p?.parcelId ?? p?.PARCELID ?? p?.parcelID ?? "";
-    const normalized = normParcelId(pid);
-    console.log("Getting PID from props:", p, "-> normalized:", normalized);
-    return normalized;
+    return toStr(pid);
   };
+  const getLotFromProps = (p) => toStr(p?.LotNumber);
 
-  // reliably fit + open popup
-  const focusAndOpen = useCallback(
-    (layer) => {
-      console.log("focusAndOpen called with:", layer, "mapObj:", mapObj);
+  /* ---------------- focus map, open popup, update highlight ---------------- */
+  const focusOpenAndHighlight = useCallback(
+    (layer, feature) => {
+      if (!layer || !mapObj) return;
 
-      if (!layer || !mapObj) {
-        console.log("Missing layer or mapObj");
-        return;
+      // Update overlay highlight
+      if (highlightRef.current) {
+        highlightRef.current.clearLayers();
+        if (feature?.geometry) {
+          highlightRef.current.addData(feature);
+          try { highlightRef.current.bringToFront(); } catch {}
+        }
       }
 
       const bounds = layer.getBounds?.();
-      console.log("Layer bounds:", bounds);
-
       const doOpen = () => {
-        console.log("Attempting to open popup...");
-
-        // Try multiple ways to open the popup
+        // Try multiple ways to open the popup (robust like your working version)
         if (layer.getPopup && layer.getPopup()) {
-          console.log("Opening existing popup");
           layer.openPopup();
         } else if (layer.bindPopup) {
-          console.log("Popup exists, trying to open");
           layer.openPopup();
         } else {
-          console.log("Firing click event");
-          try {
-            layer.fire("click");
-          } catch (e) {
-            console.error("Error firing click:", e);
-          }
+          try { layer.fire("click"); } catch {}
         }
-
-        // Force highlight the layer
-        layer.setStyle(highlightStyle);
       };
 
       if (bounds && bounds.isValid()) {
-        console.log("Fitting bounds and opening popup");
         mapObj.fitBounds(bounds, { maxZoom: 18, animate: true });
 
-        // Try opening immediately
+        // immediate attempt
         setTimeout(doOpen, 100);
 
-        // Also try after map movement
+        // also after moveend
         let opened = false;
         const onMoveEnd = () => {
           if (opened) return;
@@ -394,7 +336,7 @@ export default function MapPage() {
         };
         mapObj.on("moveend", onMoveEnd);
 
-        // Fallback
+        // final fallback
         setTimeout(() => {
           if (!opened) {
             mapObj.off("moveend", onMoveEnd);
@@ -402,14 +344,13 @@ export default function MapPage() {
           }
         }, 1000);
       } else {
-        console.log("No valid bounds, opening popup directly");
         doOpen();
       }
     },
-    [mapObj, highlightStyle]
+    [mapObj]
   );
 
-  // initial fit (no pid)
+  /* -------------------------- Initial fit on load -------------------------- */
   useEffect(() => {
     if (!mapObj || !fc?.features?.length) return;
     if (!routeParcelId) {
@@ -419,119 +360,116 @@ export default function MapPage() {
     }
   }, [routeParcelId, fc, mapObj]);
 
-  // search submit -> navigate and arm pendingPid, then show popup
+  /* ----------------------------- Submit search ----------------------------- */
   const submitSearch = (e) => {
     e?.preventDefault?.();
-    const pid = normParcelId(searchPid);
-    if (!pid) {
-      alert("Please enter a valid Parcel ID");
+    const term = toStr(searchValue);
+    if (!term) {
+      alert(`Please enter a valid ${searchField === "parcel" ? "Parcel ID" : "Lot Number"}.`);
       return;
     }
 
-    console.log("Searching for parcel:", pid);
-    console.log("Available parcels:", Array.from(layersByParcelRef.current.keys()));
+    let targetLayer = null;
+    let targetFeature = null;
 
-    // Find the layer for this parcel ID - try different formats
-    let targetLayer = layersByParcelRef.current.get(pid);
+    if (searchField === "parcel") {
+      // parcel search uses normalized key map
+      targetLayer = byParcelRef.current.get(normKey(term)) || null;
 
-    // If not found, try as number
-    if (!targetLayer && !isNaN(pid)) {
-      targetLayer = layersByParcelRef.current.get(Number(pid));
-    }
+      // extra tolerance like the working version
+      if (!targetLayer) {
+        for (const [key, lyr] of byParcelRef.current.entries()) {
+          if (String(key).toLowerCase() === String(term).toLowerCase()) {
+            targetLayer = lyr; break;
+          }
+        }
+      }
 
-    // If still not found, try as string
-    if (!targetLayer) {
-      targetLayer = layersByParcelRef.current.get(String(pid));
-    }
+      if (targetLayer) targetFeature = targetLayer.feature ?? null;
+    } else {
+      // lot search -> may return multiple
+      const matches = byLotRef.current.get(normKey(term));
+      if (matches?.length) {
+        targetLayer = matches[0];
+        targetFeature = targetLayer.feature ?? null;
 
-    // If still not found, search through all layers manually
-    if (!targetLayer) {
-      for (const [key, layer] of layersByParcelRef.current.entries()) {
-        if (String(key).toLowerCase() === String(pid).toLowerCase()) {
-          targetLayer = layer;
-          break;
+        if (matches.length > 1) {
+          const list = matches.slice(0, 6).map((l, i) => {
+            const pid = getPidFromProps(l.feature?.properties || {});
+            return `${i + 1}. Parcel ${pid || "—"}`;
+          }).join("\n");
+          alert(`Multiple parcels share Lot "${term}". Showing the first match.\n\nOther matches:\n${list}${matches.length > 6 ? "\n…" : ""}`);
         }
       }
     }
 
     if (!targetLayer) {
-      const availableParcels = Array.from(layersByParcelRef.current.keys())
-        .slice(0, 10)
-        .join(", ");
-      alert(`Parcel with ID "${pid}" not found.\n\nAvailable parcels (first 10): ${availableParcels}...`);
+      const sample = Array.from(byParcelRef.current.keys()).slice(0, 8).join(", ");
+      alert(
+        `${searchField === "parcel" ? "Parcel" : "Lot"} "${term}" not found.\n\nSample Parcel IDs: ${sample || "—"}`
+      );
       return;
     }
 
-    console.log("Found target layer:", targetLayer);
-    console.log("Layer has popup?", targetLayer.getPopup && targetLayer.getPopup());
-    console.log("MapObj available?", !!mapObj);
+    const pid = getPidFromProps(targetLayer.feature?.properties || {});
+    if (pid) {
+      setSelectedPid(pid);
+      // reflect PID in URL for deep-linking consistency
+      window.history.pushState(null, "", `/${encodeURIComponent(pid)}`);
+    }
 
-    // Hide search first
     setShowSearch(false);
 
-    // Wait a bit for UI to update, then focus and open
+    // Use robust popup open (plus simulated click fallback like your working code)
     setTimeout(() => {
-      console.log("Attempting to focus and open popup...");
+      focusOpenAndHighlight(targetLayer, targetFeature);
 
-      // Try the focusAndOpen function first
-      focusAndOpen(targetLayer);
-
-      // Also try directly simulating a click as backup
       setTimeout(() => {
-        console.log("Trying direct click simulation...");
         try {
-          // Simulate the click event that normally opens the popup
           const c = targetLayer.getBounds().getCenter();
           targetLayer.fire("click", {
             latlng: c,
             layerPoint: mapObj.latLngToLayerPoint(c),
             containerPoint: mapObj.latLngToContainerPoint(c),
           });
-        } catch (e) {
-          console.error("Error with click simulation:", e);
-
-          // Last resort - try opening popup directly
+        } catch {
           if (targetLayer.getPopup()) {
-            console.log("Last resort: opening popup directly");
-            targetLayer.openPopup(targetLayer.getBounds().getCenter());
+            try { targetLayer.openPopup(targetLayer.getBounds().getCenter()); } catch {}
           }
         }
       }, 500);
     }, 200);
-
-    // Also update the URL without navigation
-    window.history.pushState(null, "", `/${encodeURIComponent(pid)}`);
   };
 
-  // After render, if a pending layer exists (or shows up), open it.
+  /* -------------- Auto-open when route param points to a parcel -------------- */
   useEffect(() => {
-    if (!pendingPid) return;
+    if (!pendingKey) return;
     let n = 0;
     const max = 25;
-    const tick = () => {
-      const pid = pendingPidRef.current;
-      if (!pid) return true; // done/canceled
 
-      let lyr = layersByParcelRef.current.get(pid) || pendingLayerRef.current;
+    const tick = () => {
+      const key = pendingKeyRef.current;
+      if (!key) return true;
+
+      const lyr = byParcelRef.current.get(key) || pendingLayerRef.current;
       if (lyr && mapObj) {
-        focusAndOpen(lyr);
+        const pid = getPidFromProps(lyr.feature?.properties || {});
+        setSelectedPid(pid || "");
+        focusOpenAndHighlight(lyr, lyr.feature);
         pendingLayerRef.current = null;
-        setPendingPid(""); // safe here (post-render)
+        setPendingKey("");
         return true;
       }
       n += 1;
       return n >= max;
     };
 
-    // try immediately and keep polling briefly
     if (tick()) return;
-    const iv = setInterval(() => {
-      if (tick()) clearInterval(iv);
-    }, 100);
+    const iv = setInterval(() => { if (tick()) clearInterval(iv); }, 100);
     return () => clearInterval(iv);
-  }, [pendingPid, mapObj, focusAndOpen]);
+  }, [pendingKey, mapObj, focusOpenAndHighlight]);
 
-  // lightweight tax lookup using lot+barangay
+  /* --------------------- Lightweight tax lookup (same) --------------------- */
   const fetchTaxIdForFeature = useCallback(async (p) => {
     const lotNo = toStr(p?.LotNumber);
     const barangay = toStr(p?.BarangayNa);
@@ -543,9 +481,7 @@ export default function MapPage() {
         if (Array.isArray(data)) return data[0]?.id ?? data[0]?.taxId ?? null;
         if (typeof data === "object") return data?.id ?? data?.taxId ?? data?.result?.id ?? data?.result?.taxId ?? null;
         return null;
-      } catch {
-        return null;
-      }
+      } catch { return null; }
     };
     if (lotNo) {
       for (const t of [
@@ -560,37 +496,40 @@ export default function MapPage() {
     return null;
   }, []);
 
-  // ----------------- per-feature wiring -----------------
+  /* --------------------------- Per-feature wiring --------------------------- */
   const onEachFeature = (feature, layer) => {
     const p = feature.properties || {};
     const pid = getPidFromProps(p);
-    console.log("Processing feature with PID:", pid, "Properties:", p);
+    const lot = getLotFromProps(p);
+    const kPid = normKey(pid);
+    const kLot = normKey(lot);
 
-    if (pid) {
-      layersByParcelRef.current.set(pid, layer);
-      // Also store as string and number variants to improve search
-      layersByParcelRef.current.set(String(pid), layer);
-      if (!isNaN(pid)) {
-        layersByParcelRef.current.set(Number(pid), layer);
-      }
-      console.log("Stored layer for PID:", pid);
+    if (kPid) byParcelRef.current.set(kPid, layer);
+    if (kLot) {
+      const arr = byLotRef.current.get(kLot) || [];
+      arr.push(layer);
+      byLotRef.current.set(kLot, arr);
     }
 
     layer.on({
-      mouseover: () => layer.setStyle(highlightStyle),
-      mouseout: () => layer.setStyle(baseStyle),
+      mouseover: () => {
+        if (pid && pid === selectedPid) return;
+        layer.setStyle(hoverStyle);
+      },
+      mouseout: () => {
+        if (!(pid && pid === selectedPid)) layer.setStyle(baseStyle);
+      },
       click: () => {
-        if (!pid) return;
-        if (!location.pathname.endsWith(`/${pid}`)) {
-          navigate(`/${encodeURIComponent(pid)}`);
+        if (pid) {
+          if (!location.pathname.endsWith(`/${pid}`)) navigate(`/${encodeURIComponent(pid)}`);
+          setSelectedPid(pid);
         }
         setShowSearch(false);
-        setPendingPid(pid); // event handler (safe)
-        focusAndOpen(layer);
+        focusOpenAndHighlight(layer, feature);
       },
     });
 
-    // Popup HTML with enhanced information display
+    // Popup (same content/IDs and behaviors from your working code)
     const uidTax = `open-tax-${layer._leaflet_id}`;
     const uidParcel = `open-parcel-${layer._leaflet_id}`;
     const html = `
@@ -598,7 +537,6 @@ export default function MapPage() {
         <div style="border-bottom:1px solid #e0e6ed;padding-bottom:8px;margin-bottom:8px;">
           <strong style="font-size:14px;color:#0b5faa;">${p.BarangayNa ?? "Parcel Information"}</strong>
         </div>
-        
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px;">
           ${p.ParcelId ? `<div><strong>Parcel ID:</strong></div><div>${p.ParcelId}</div>` : ""}
           ${p.LotNumber ? `<div><strong>Lot:</strong></div><div>${p.LotNumber}</div>` : ""}
@@ -609,7 +547,6 @@ export default function MapPage() {
           ${p.SurvayPlan ? `<div><strong>Survey Plan:</strong></div><div>${p.SurvayPlan}</div>` : ""}
           ${p.SurveyId ? `<div><strong>Survey ID:</strong></div><div>${p.SurveyId}</div>` : ""}
         </div>
-        
         ${p.Tax_Amount || p.Due_Date || p.AmountPaid ? `
           <div style="border-top:1px solid #e0e6ed;padding-top:8px;margin-top:8px;">
             <div style="font-weight:600;color:#0b5faa;margin-bottom:4px;">Tax Information</div>
@@ -619,16 +556,14 @@ export default function MapPage() {
               ${p.AmountPaid ? `<div><strong>Amount Paid:</strong></div><div>₱${parseFloat(p.AmountPaid).toLocaleString()}</div>` : ""}
               ${p.Date_paid ? `<div><strong>Date Paid:</strong></div><div>${new Date(p.Date_paid).toLocaleDateString()}</div>` : ""}
             </div>
-          </div>
-        ` : ""}
-        
+          </div>` : ""}
         <div style="margin-top:12px; display:flex; flex-direction:column; gap:6px;">
           <button id="${uidTax}" type="button"
-            style="padding:8px 12px;border:0;border-radius:6px;background:#0b5faa;color:#fff;cursor:pointer;font-weight:600;transition:background-color 0.2s;">
+            style="padding:8px 12px;border:0;border-radius:6px;background:#0b5faa;color:#fff;cursor:pointer;font-weight:600;">
             View Tax Form
           </button>
           <button id="${uidParcel}" type="button"
-            style="padding:8px 12px;border:1px solid #d0d7de;border-radius:6px;background:#fff;color:#0b5faa;cursor:pointer;font-weight:600;transition:all 0.2s;">
+            style="padding:8px 12px;border:1px solid #d0d7de;border-radius:6px;background:#fff;color:#0b5faa;cursor:pointer;font-weight:600;">
             View Full Parcel Details
           </button>
         </div>
@@ -640,52 +575,30 @@ export default function MapPage() {
       const btnParcel = document.getElementById(uidParcel);
 
       if (btnTax) {
-        btnTax.onmouseover = () => (btnTax.style.backgroundColor = "#083d73");
-        btnTax.onmouseout = () => (btnTax.style.backgroundColor = "#0b5faa");
-
         btnTax.onclick = async () => {
-          btnTax.disabled = true;
-          btnTax.textContent = "Opening…";
+          btnTax.disabled = true; btnTax.textContent = "Opening…";
           try {
             const taxId = await fetchTaxIdForFeature(p);
             if (taxId) {
               localStorage.setItem("taxId", String(taxId));
-              navigate("/taxform");
-              return;
+              navigate("/taxform"); return;
             }
-            btnTax.disabled = false;
-            btnTax.textContent = "View Tax Form";
-            const wantCreate = window.confirm(
-              "No tax record found for this lot. Do you want to add a new tax form?"
-            );
+            btnTax.disabled = false; btnTax.textContent = "View Tax Form";
+            const wantCreate = window.confirm("No tax record found for this lot. Add a new tax form?");
             if (!wantCreate) return;
-            const prefill = {
-              parcelId: p?.ParcelId ?? "",
-              lotNo: p?.LotNumber ?? "",
-              barangay: p?.BarangayNa ?? "",
-            };
+            const prefill = { parcelId: p?.ParcelId ?? "", lotNo: p?.LotNumber ?? "", barangay: p?.BarangayNa ?? "" };
             localStorage.removeItem("taxId");
             localStorage.setItem("prefillTaxData", JSON.stringify(prefill));
             navigate("/taxform");
           } catch (e) {
             console.error(e);
-            btnTax.disabled = false;
-            btnTax.textContent = "View Tax Form";
+            btnTax.disabled = false; btnTax.textContent = "View Tax Form";
             alert("Failed to fetch tax record.");
           }
         };
       }
 
       if (btnParcel) {
-        btnParcel.onmouseover = () => {
-          btnParcel.style.backgroundColor = "#f6f8fa";
-          btnParcel.style.borderColor = "#0b5faa";
-        };
-        btnParcel.onmouseout = () => {
-          btnParcel.style.backgroundColor = "#fff";
-          btnParcel.style.borderColor = "#d0d7de";
-        };
-
         btnParcel.onclick = () => {
           const lines = [
             `Parcel ID: ${p?.ParcelId ?? "—"}`,
@@ -716,10 +629,9 @@ export default function MapPage() {
       }
     });
 
-    // If this layer matches the pending PID, remember it (DON'T set state here)
-    if (pendingPidRef.current && pid === pendingPidRef.current) {
+    // if this layer matches the route-pending parcel key
+    if (pendingKeyRef.current && kPid === pendingKeyRef.current) {
       pendingLayerRef.current = layer;
-      // Opening will be handled in useEffect after render
     }
   };
 
@@ -729,15 +641,12 @@ export default function MapPage() {
 
   return (
     <div style={{ height: "90vh", width: "100%", position: "relative" }}>
-      {/* Add some custom CSS for popup styling */}
       <style>{`
         .custom-popup .leaflet-popup-content-wrapper {
           border-radius: 10px;
           box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
-        .custom-popup .leaflet-popup-tip {
-          background: white;
-        }
+        .custom-popup .leaflet-popup-tip { background: white; }
       `}</style>
 
       <MapContainer
@@ -751,51 +660,53 @@ export default function MapPage() {
         wheelPxPerZoomLevel={160}
         whenCreated={setMapObj}
       >
-<LayersControl position="topright">
-  <LayersControl.BaseLayer name="OpenStreetMap">
-    <TileLayer
-      attribution="&copy; OpenStreetMap contributors"
-      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      maxZoom={MAX_ZOOM}
-    />
-  </LayersControl.BaseLayer>
+        <LayersControl position="topright">
+          <LayersControl.BaseLayer name="OpenStreetMap">
+            <TileLayer
+              attribution="&copy; OpenStreetMap contributors"
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              maxZoom={MAX_ZOOM}
+            />
+          </LayersControl.BaseLayer>
 
-  <LayersControl.BaseLayer name="Mapbox Streets">
-    <TileLayer
-      url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
-      attribution="&copy; Mapbox &copy; OpenStreetMap"
-      maxZoom={MAX_ZOOM}
-      tileSize={512}
-      zoomOffset={-1}
-    />
-  </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Mapbox Streets">
+            <TileLayer
+              url={`https://api.mapbox.com/styles/v1/mapbox/streets-v12/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
+              attribution="&copy; Mapbox &copy; OpenStreetMap"
+              maxZoom={MAX_ZOOM}
+              tileSize={512}
+              zoomOffset={-1}
+            />
+          </LayersControl.BaseLayer>
 
-  <LayersControl.BaseLayer name="Mapbox Satellite">
-    <TileLayer
-      url={`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
-      attribution="Imagery © Mapbox, © Maxar"
-      maxZoom={MAX_ZOOM}
-      tileSize={512}
-      zoomOffset={-1}
-    />
-  </LayersControl.BaseLayer>
+          <LayersControl.BaseLayer name="Mapbox Satellite">
+            <TileLayer
+              url={`https://api.mapbox.com/styles/v1/mapbox/satellite-v9/tiles/512/{z}/{x}/{y}@2x?access_token=${MAPBOX_TOKEN}`}
+              attribution="Imagery © Mapbox, © Maxar"
+              maxZoom={MAX_ZOOM}
+              tileSize={512}
+              zoomOffset={-1}
+            />
+          </LayersControl.BaseLayer>
 
-  {/* ✅ Make Esri default by putting `checked` here */}
-  <LayersControl.BaseLayer checked name="Esri World Imagery">
-    <TileLayer
-      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-      attribution="Tiles © Esri"
-      maxZoom={MAX_ZOOM}
-    />
-  </LayersControl.BaseLayer>
-</LayersControl>
+          {/* default */}
+          <LayersControl.BaseLayer checked name="Esri World Imagery">
+            <TileLayer
+              url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+              attribution="Tiles © Esri"
+              maxZoom={MAX_ZOOM}
+            />
+          </LayersControl.BaseLayer>
+        </LayersControl>
 
-        {/* 👇 Custom control renders below the LayersControl in top-right via a React portal */}
+        {/* Search control with field toggle */}
         <SearchControl
           showSearch={showSearch}
           setShowSearch={setShowSearch}
-          searchPid={searchPid}
-          setSearchPid={setSearchPid}
+          searchValue={searchValue}
+          setSearchValue={setSearchValue}
+          searchField={searchField}
+          setSearchField={setSearchField}
           submitSearch={submitSearch}
           userCollapsed={userCollapsed}
           setUserCollapsed={setUserCollapsed}
