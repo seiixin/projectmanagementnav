@@ -6,31 +6,45 @@ import L from "leaflet";
 import api from "../../lib/axios.js";
 import "leaflet/dist/leaflet.css";
 
-// ensure marker assets resolve (even if we don't drop pins)
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: markerIcon2x,
-  iconUrl: markerIcon,
-  shadowUrl: markerShadow,
-});
+L.Icon.Default.mergeOptions({ iconRetinaUrl: markerIcon2x, iconUrl: markerIcon, shadowUrl: markerShadow });
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 const toStr = (v) => (v == null ? "" : String(v).trim());
 const normKey = (v) => toStr(v).toLowerCase();
 
-/* ----------------------- Search Control (Parcel / Lot) ----------------------- */
+/* -------------------- General "zoom after render" helper -------------------- */
+function ZoomAfterRender({ zoom = 18, delayMs = 140 }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map) return;
+    let done = false;
+    const finish = () => {
+      if (done) return; done = true;
+      try {
+        const target = Math.min(zoom, map.getMaxZoom?.() ?? zoom);
+        const cur = map.getZoom?.() ?? 0;
+        if (Math.abs(cur - target) < 0.01) return;
+        const center = map.getCenter();
+        setTimeout(() => map.flyTo(center, target, { duration: 0.7, easeLinearity: 0.25 }), delayMs);
+      } catch {}
+    };
+    map.once("moveend", finish);
+    const t = setTimeout(finish, 2000);
+    return () => clearTimeout(t);
+  }, [map, zoom, delayMs]);
+  return null;
+}
+
+/* ----------------------- Search Control (Parcel / Lot) ---------------------- */
 function SearchControl({
-  showSearch,
-  setShowSearch,
-  searchValue,
-  setSearchValue,
-  searchField,
-  setSearchField,
+  showSearch, setShowSearch,
+  searchValue, setSearchValue,
+  searchField, setSearchField,
   submitSearch,
-  userCollapsed,
-  setUserCollapsed,
+  userCollapsed, setUserCollapsed,
 }) {
   const map = useMap();
   const controlRef = useRef(null);
@@ -74,42 +88,20 @@ function SearchControl({
   const IconButton = (
     <button
       onClick={() => { setUserCollapsed(false); setShowSearch(true); }}
-      title="Search parcels"
-      aria-label="Open search"
-      className="sp-iconbtn"
+      title="Search parcels" aria-label="Open search" className="sp-iconbtn"
     >🔍</button>
   );
 
   const Panel = (
-    <div
-      style={{
-        padding: 8,
-        background: "#fff",
-        border: 0,
-        borderRadius: 12,
-        boxShadow: "0 6px 18px rgba(0,0,0,.16)",
-        display: "flex",
-        flexDirection: "row",
-        gap: 8,
-        alignItems: "center",
-        flexWrap: "wrap",
-        maxWidth: "100%",
-      }}
-    >
-      <form
-        onSubmit={submitSearch}
-        style={{ display: "flex", flex: 1, gap: 8, alignItems: "center", flexWrap: "wrap" }}
-      >
+    <div style={{
+      padding: 8, background: "#fff", border: 0, borderRadius: 12,
+      boxShadow: "0 6px 18px rgba(0,0,0,.16)", display: "flex",
+      flexDirection: "row", gap: 8, alignItems: "center", flexWrap: "wrap", maxWidth: "100%",
+    }}>
+      <form onSubmit={submitSearch} style={{ display: "flex", flex: 1, gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <select
-          value={searchField}
-          onChange={(e) => setSearchField(e.target.value)}
-          aria-label="Search field"
-          style={{
-            padding: "8px 10px",
-            borderRadius: 10,
-            border: "1px solid #c7ccd1",
-            fontSize: 14,
-          }}
+          value={searchField} onChange={(e) => setSearchField(e.target.value)} aria-label="Search field"
+          style={{ padding: "8px 10px", borderRadius: 10, border: "1px solid #c7ccd1", fontSize: 14 }}
         >
           <option value="parcel">Parcel ID</option>
           <option value="lot">Lot Number</option>
@@ -119,44 +111,27 @@ function SearchControl({
           <input
             type="text"
             placeholder={searchField === "parcel" ? "Enter Parcel ID…" : "Enter Lot Number…"}
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
+            value={searchValue} onChange={(e) => setSearchValue(e.target.value)}
             aria-label={searchField === "parcel" ? "Parcel ID" : "Lot Number"}
-            style={{
-              width: "100%",
-              padding: "8px 36px 8px 12px",
-              borderRadius: 10,
-              border: "1px solid #c7ccd1",
-              outline: "none",
-              fontSize: 14,
-            }}
+            style={{ width: "100%", padding: "8px 36px 8px 12px", borderRadius: 10, border: "1px solid #c7ccd1", outline: "none", fontSize: 14 }}
           />
           {hasText && (
             <button
-              type="button"
-              aria-label="Clear"
-              onClick={() => setSearchValue("")}
+              type="button" aria-label="Clear" onClick={() => setSearchValue("")}
               style={{
                 position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
-                width: 24, height: 24, borderRadius: 12, border: 0, background: "#fff",
-                cursor: "pointer", lineHeight: "20px",
+                width: 24, height: 24, borderRadius: 12, border: 0, background: "#fff", cursor: "pointer", lineHeight: "20px",
               }}
             >×</button>
           )}
         </div>
 
         <button
-          type="submit"
-          disabled={!hasText}
+          type="submit" disabled={!hasText}
           style={{
-            padding: "8px 14px",
-            borderRadius: 10,
-            border: 0,
-            background: hasText ? "#0b5faa" : "#9bb8d4",
-            color: "#fff",
-            fontWeight: 700,
-            cursor: hasText ? "pointer" : "not-allowed",
-            display: "flex", alignItems: "center", gap: 8, fontSize: 14,
+            padding: "8px 14px", borderRadius: 10, border: 0,
+            background: hasText ? "#0b5faa" : "#9bb8d4", color: "#fff", fontWeight: 700,
+            cursor: hasText ? "pointer" : "not-allowed", display: "flex", alignItems: "center", gap: 8, fontSize: 14,
           }}
         >
           <span style={{ fontSize: 16 }}>🔎</span> Search
@@ -196,7 +171,7 @@ function SearchControl({
 
 /* --------------------------------- Map Page --------------------------------- */
 export default function MapPage() {
-  const { parcelId: routeParcelId } = useParams(); // /:parcelId
+  const { parcelId: routeParcelId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -205,33 +180,45 @@ export default function MapPage() {
   const [fc, setFC] = useState(null);
   const [mapObj, setMapObj] = useState(null);
 
-  // UI for hideable search
   const [showSearch, setShowSearch] = useState(!routeParcelId);
   const [userCollapsed, setUserCollapsed] = useState(false);
   const [searchValue, setSearchValue] = useState(routeParcelId || "");
-  const [searchField, setSearchField] = useState("parcel"); // "parcel" | "lot"
+  const [searchField, setSearchField] = useState("parcel");
 
-  // selection & overlay highlight
-  const highlightRef = useRef(null); // L.GeoJSON for persistent selection
+  const highlightRef = useRef(null);
   const [selectedPid, setSelectedPid] = useState("");
+  const selectedPidRef = useRef("");            // <-- live selection for handlers
+  useEffect(() => { selectedPidRef.current = selectedPid; }, [selectedPid]);
 
-  // route-driven selection
+  const selectedLayerRef = useRef(null);        // <-- persist selected style
+
   const [pendingKey, setPendingKey] = useState(routeParcelId ? normKey(routeParcelId) : "");
   const pendingKeyRef = useRef(pendingKey);
   const pendingLayerRef = useRef(null);
 
-  // fast lookups
-  const byParcelRef = useRef(new Map()); // normalized ParcelId -> layer
-  const byLotRef = useRef(new Map());    // normalized LotNumber -> array<layer>
+  const byParcelRef = useRef(new Map());
+  const byLotRef = useRef(new Map());
 
   const MAX_ZOOM = 19;
   const fallbackCenter = useMemo(() => [13.8, 121.14], []);
   const baseStyle = useMemo(() => ({ color: "#1e73be", weight: 1.25, fillOpacity: 0.22 }), []);
-  const hoverStyle = useMemo(() => ({ color: "#0b5faa", weight: 2, fillOpacity: 0.28 }), []);
-  const overlayStyle = useMemo(
-    () => ({ color: "#ff7f0e", weight: 3.5, fillOpacity: 0.28, dashArray: "4,2" }),
-    []
-  );
+  const hoverStyle = useMemo(() => ({ color: "#F2C200", weight: 2, fillOpacity: 0.28 }), []);
+  const selectedStyle = useMemo(() => ({ color: "#F2C200", weight: 3, fillOpacity: 0.35 }), []); // persistent
+
+  const overlayStyle = useMemo(() => ({ color: "#ff7f0e", weight: 3.5, fillOpacity: 0.28, dashArray: "4,2" }), []);
+
+  const setSelectedLayer = useCallback((layer, pid) => {
+    // clear previous
+    const prev = selectedLayerRef.current;
+    if (prev && prev !== layer) {
+      try { prev.setStyle(baseStyle); } catch {}
+    }
+    selectedLayerRef.current = layer || null;
+    if (layer) {
+      try { layer.setStyle(selectedStyle); } catch {}
+    }
+    setSelectedPid(pid || "");
+  }, [baseStyle, selectedStyle]);
 
   /* ----------------------------- Load GeoJSON ----------------------------- */
   useEffect(() => {
@@ -254,7 +241,18 @@ export default function MapPage() {
           })
           .filter(Boolean);
 
-        setFC({ type: "FeatureCollection", features });
+        const fcBuilt = { type: "FeatureCollection", features };
+        setFC(fcBuilt);
+
+        setTimeout(() => {
+          try {
+            const lyr = L.geoJSON(fcBuilt);
+            const b = lyr.getBounds();
+            if (mapObj && b.isValid()) {
+              mapObj.fitBounds(b, { padding: [36, 36], maxZoom: 14, animate: true });
+            }
+          } catch {}
+        }, 0);
       } catch (e) {
         console.error(e);
         setErr("Failed to load parcels.");
@@ -262,7 +260,7 @@ export default function MapPage() {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [mapObj]);
 
   /* --------------------- Init persistent highlight layer --------------------- */
   useEffect(() => {
@@ -276,10 +274,8 @@ export default function MapPage() {
     }
   }, [mapObj, overlayStyle]);
 
-  // mirrors
   useEffect(() => { pendingKeyRef.current = pendingKey; }, [pendingKey]);
 
-  // sync UI with route
   useEffect(() => {
     const pidKey = routeParcelId ? normKey(routeParcelId) : "";
     setSearchValue(routeParcelId || "");
@@ -296,10 +292,10 @@ export default function MapPage() {
 
   /* ---------------- focus map, open popup, update highlight ---------------- */
   const focusOpenAndHighlight = useCallback(
-    (layer, feature) => {
+    async (layer, feature) => {
       if (!layer || !mapObj) return;
 
-      // Update overlay highlight
+      // add orange overlay
       if (highlightRef.current) {
         highlightRef.current.clearLayers();
         if (feature?.geometry) {
@@ -308,57 +304,32 @@ export default function MapPage() {
         }
       }
 
+      // persist selected magenta style on the clicked layer
+      const pid = getPidFromProps(feature?.properties || {});
+      setSelectedLayer(layer, pid);
+
       const bounds = layer.getBounds?.();
-      const doOpen = () => {
-        // Try multiple ways to open the popup (robust like your working version)
-        if (layer.getPopup && layer.getPopup()) {
-          layer.openPopup();
-        } else if (layer.bindPopup) {
-          layer.openPopup();
-        } else {
-          try { layer.fire("click"); } catch {}
-        }
+      const openPopup = () => {
+        try {
+          if (layer.getPopup && layer.getPopup()) layer.openPopup();
+          else if (layer.bindPopup) layer.openPopup();
+          else layer.fire("click");
+        } catch {}
       };
 
       if (bounds && bounds.isValid()) {
-        mapObj.fitBounds(bounds, { maxZoom: 18, animate: true });
-
-        // immediate attempt
-        setTimeout(doOpen, 100);
-
-        // also after moveend
-        let opened = false;
-        const onMoveEnd = () => {
-          if (opened) return;
-          opened = true;
-          mapObj.off("moveend", onMoveEnd);
-          setTimeout(doOpen, 100);
-        };
-        mapObj.on("moveend", onMoveEnd);
-
-        // final fallback
+        mapObj.fitBounds(bounds, { padding: [28, 28], maxZoom: 16, animate: true });
         setTimeout(() => {
-          if (!opened) {
-            mapObj.off("moveend", onMoveEnd);
-            doOpen();
-          }
-        }, 1000);
+          try { mapObj.flyTo(mapObj.getCenter(), 18, { duration: 0.65, easeLinearity: 0.25 }); } catch {}
+        }, 120);
+        setTimeout(openPopup, 160);
       } else {
-        doOpen();
+        openPopup();
+        try { mapObj.flyTo(mapObj.getCenter(), 18, { duration: 0.65, easeLinearity: 0.25 }); } catch {}
       }
     },
-    [mapObj]
+    [mapObj, setSelectedLayer]
   );
-
-  /* -------------------------- Initial fit on load -------------------------- */
-  useEffect(() => {
-    if (!mapObj || !fc?.features?.length) return;
-    if (!routeParcelId) {
-      const layer = L.geoJSON(fc);
-      const b = layer.getBounds();
-      if (b.isValid()) mapObj.fitBounds(b, { animate: true });
-    }
-  }, [routeParcelId, fc, mapObj]);
 
   /* ----------------------------- Submit search ----------------------------- */
   const submitSearch = (e) => {
@@ -373,26 +344,18 @@ export default function MapPage() {
     let targetFeature = null;
 
     if (searchField === "parcel") {
-      // parcel search uses normalized key map
       targetLayer = byParcelRef.current.get(normKey(term)) || null;
-
-      // extra tolerance like the working version
       if (!targetLayer) {
         for (const [key, lyr] of byParcelRef.current.entries()) {
-          if (String(key).toLowerCase() === String(term).toLowerCase()) {
-            targetLayer = lyr; break;
-          }
+          if (String(key).toLowerCase() === String(term).toLowerCase()) { targetLayer = lyr; break; }
         }
       }
-
       if (targetLayer) targetFeature = targetLayer.feature ?? null;
     } else {
-      // lot search -> may return multiple
       const matches = byLotRef.current.get(normKey(term));
       if (matches?.length) {
         targetLayer = matches[0];
         targetFeature = targetLayer.feature ?? null;
-
         if (matches.length > 1) {
           const list = matches.slice(0, 6).map((l, i) => {
             const pid = getPidFromProps(l.feature?.properties || {});
@@ -405,25 +368,20 @@ export default function MapPage() {
 
     if (!targetLayer) {
       const sample = Array.from(byParcelRef.current.keys()).slice(0, 8).join(", ");
-      alert(
-        `${searchField === "parcel" ? "Parcel" : "Lot"} "${term}" not found.\n\nSample Parcel IDs: ${sample || "—"}`
-      );
+      alert(`${searchField === "parcel" ? "Parcel" : "Lot"} "${term}" not found.\n\nSample Parcel IDs: ${sample || "—"}`);
       return;
     }
 
     const pid = getPidFromProps(targetLayer.feature?.properties || {});
     if (pid) {
-      setSelectedPid(pid);
-      // reflect PID in URL for deep-linking consistency
+      setSelectedLayer(targetLayer, pid); // persist selected color
       window.history.pushState(null, "", `/${encodeURIComponent(pid)}`);
     }
 
     setShowSearch(false);
 
-    // Use robust popup open (plus simulated click fallback like your working code)
     setTimeout(() => {
       focusOpenAndHighlight(targetLayer, targetFeature);
-
       setTimeout(() => {
         try {
           const c = targetLayer.getBounds().getCenter();
@@ -437,8 +395,8 @@ export default function MapPage() {
             try { targetLayer.openPopup(targetLayer.getBounds().getCenter()); } catch {}
           }
         }
-      }, 500);
-    }, 200);
+      }, 400);
+    }, 150);
   };
 
   /* -------------- Auto-open when route param points to a parcel -------------- */
@@ -454,7 +412,7 @@ export default function MapPage() {
       const lyr = byParcelRef.current.get(key) || pendingLayerRef.current;
       if (lyr && mapObj) {
         const pid = getPidFromProps(lyr.feature?.properties || {});
-        setSelectedPid(pid || "");
+        setSelectedLayer(lyr, pid);            // persist selection on auto-open
         focusOpenAndHighlight(lyr, lyr.feature);
         pendingLayerRef.current = null;
         setPendingKey("");
@@ -467,7 +425,7 @@ export default function MapPage() {
     if (tick()) return;
     const iv = setInterval(() => { if (tick()) clearInterval(iv); }, 100);
     return () => clearInterval(iv);
-  }, [pendingKey, mapObj, focusOpenAndHighlight]);
+  }, [pendingKey, mapObj, focusOpenAndHighlight, setSelectedLayer]);
 
   /* --------------------- Lightweight tax lookup (same) --------------------- */
   const fetchTaxIdForFeature = useCallback(async (p) => {
@@ -511,25 +469,29 @@ export default function MapPage() {
       byLotRef.current.set(kLot, arr);
     }
 
+    // hover should NOT override selected style
     layer.on({
       mouseover: () => {
-        if (pid && pid === selectedPid) return;
-        layer.setStyle(hoverStyle);
+        if (pid && selectedPidRef.current === pid) return; // stay selected
+        try { layer.setStyle(hoverStyle); } catch {}
       },
       mouseout: () => {
-        if (!(pid && pid === selectedPid)) layer.setStyle(baseStyle);
+        if (pid && selectedPidRef.current === pid) {
+          try { layer.setStyle(selectedStyle); } catch {}
+        } else {
+          try { layer.setStyle(baseStyle); } catch {}
+        }
       },
       click: () => {
         if (pid) {
           if (!location.pathname.endsWith(`/${pid}`)) navigate(`/${encodeURIComponent(pid)}`);
-          setSelectedPid(pid);
+          setSelectedLayer(layer, pid); // persist selected style on click
         }
         setShowSearch(false);
         focusOpenAndHighlight(layer, feature);
       },
     });
 
-    // Popup (same content/IDs and behaviors from your working code)
     const uidTax = `open-tax-${layer._leaflet_id}`;
     const uidParcel = `open-parcel-${layer._leaflet_id}`;
     const html = `
@@ -620,16 +582,15 @@ export default function MapPage() {
             `Version: ${p?.VersionI ?? "—"}`,
             `Tax ID: ${p?.tax_ID ?? "—"}`,
             `Tax Amount: ${p?.Tax_Amount ? `₱${parseFloat(p.Tax_Amount).toLocaleString()}` : "—"}`,
-            `Due Date: ${p?.Due_Date ? new Date(p.Due_Date).toLocaleDateString() : "—"}`,
-            `Amount Paid: ${p?.AmountPaid ? `₱${parseFloat(p.AmountPaid).toLocaleString()}` : "—"}`,
-            `Date Paid: ${p?.Date_paid ? new Date(p.Date_paid).toLocaleDateString() : "—"}`,
+            `Due Date: ${p?.Due_Date ? new Date(p?.Due_Date).toLocaleDateString() : "—"}`,
+            `Amount Paid: ${p?.AmountPaid ? `₱${parseFloat(p?.AmountPaid).toLocaleString()}` : "—"}`,
+            `Date Paid: ${p?.Date_paid ? new Date(p?.Date_paid).toLocaleDateString() : "—"}`,
           ].join("\n");
           alert(`Complete Parcel Information\n\n${lines}`);
         };
       }
     });
 
-    // if this layer matches the route-pending parcel key
     if (pendingKeyRef.current && kPid === pendingKeyRef.current) {
       pendingLayerRef.current = layer;
     }
@@ -660,6 +621,9 @@ export default function MapPage() {
         wheelPxPerZoomLevel={160}
         whenCreated={setMapObj}
       >
+        {/* Always finalize with a general zoom-in after render/move */}
+        <ZoomAfterRender zoom={18} delayMs={140} />
+
         <LayersControl position="topright">
           <LayersControl.BaseLayer name="OpenStreetMap">
             <TileLayer
@@ -689,7 +653,6 @@ export default function MapPage() {
             />
           </LayersControl.BaseLayer>
 
-          {/* default */}
           <LayersControl.BaseLayer checked name="Esri World Imagery">
             <TileLayer
               url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
@@ -699,17 +662,12 @@ export default function MapPage() {
           </LayersControl.BaseLayer>
         </LayersControl>
 
-        {/* Search control with field toggle */}
         <SearchControl
-          showSearch={showSearch}
-          setShowSearch={setShowSearch}
-          searchValue={searchValue}
-          setSearchValue={setSearchValue}
-          searchField={searchField}
-          setSearchField={setSearchField}
+          showSearch={showSearch} setShowSearch={setShowSearch}
+          searchValue={searchValue} setSearchValue={setSearchValue}
+          searchField={searchField} setSearchField={setSearchField}
           submitSearch={submitSearch}
-          userCollapsed={userCollapsed}
-          setUserCollapsed={setUserCollapsed}
+          userCollapsed={userCollapsed} setUserCollapsed={setUserCollapsed}
         />
 
         <GeoJSON
