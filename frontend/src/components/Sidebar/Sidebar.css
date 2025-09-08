@@ -1,0 +1,26 @@
+.Sidebar {
+    .nav-link {
+        color: #FFF;
+    }
+    margin-top: 57px;
+    background-color: rgb(30 41 59 / var(--tw-bg-opacity, 1));
+}
+
+
+/* Slide animation for mobile */
+.sidebar-show {
+  transform: translateX(0);
+}
+
+.sidebar-hide {
+  transform: translateX(-100%);
+}
+
+/* Burger button - top right */
+.burger-btn {
+  position: fixed;
+  top: 8px;
+  right: 10px;
+  z-index: 1101;
+  border-radius: 8px;
+}
