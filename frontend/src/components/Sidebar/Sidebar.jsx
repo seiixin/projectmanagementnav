@@ -1,3 +1,4 @@
+// src/components/Sidebar/Sidebar.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import { Collapse } from "react-bootstrap";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
@@ -14,16 +15,30 @@ const Sidebar = () => {
   const [isMobile, setIsMobile] = useState(isSmallScreen());
   const [isOpen, setIsOpen] = useState(!isSmallScreen()); // open on desktop, closed on mobile
 
-  // open Projects submenu if current route is inside it
+  // ---------- Auto-open rules based on route ----------
   const routeInProjects = /^(\/(landparcellist|taxlist|buildinglist|logs|surveyreturns))/.test(
     location.pathname
   );
-  const [submenuOpen, setSubmenuOpen] = useState(routeInProjects);
+  const routeInParcels = /^\/parcel(\/(list|map|import|new))?$/.test(location.pathname);
+  const routeInWMS = /^\/wms(\/|$)/.test(location.pathname);
+
+  const [submenuOpenProjects, setSubmenuOpenProjects] = useState(routeInProjects);
+  const [submenuOpenParcels, setSubmenuOpenParcels] = useState(routeInParcels);
+  const [submenuOpenWMS, setSubmenuOpenWMS] = useState(routeInWMS); // NEW
 
   useEffect(() => {
-    setSubmenuOpen(routeInProjects);
+    setSubmenuOpenProjects(routeInProjects);
   }, [routeInProjects]);
 
+  useEffect(() => {
+    setSubmenuOpenParcels(routeInParcels);
+  }, [routeInParcels]);
+
+  useEffect(() => {
+    setSubmenuOpenWMS(routeInWMS);
+  }, [routeInWMS]);
+
+  // ---------- Resize handling ----------
   useEffect(() => {
     const onResize = () => {
       const mobile = isSmallScreen();
@@ -34,6 +49,7 @@ const Sidebar = () => {
     return () => window.removeEventListener("resize", onResize);
   }, []);
 
+  // ---------- Nav helpers ----------
   const onNavigate = useCallback(
     (to) => (e) => {
       if (to) navigate(to);
@@ -91,45 +107,113 @@ const Sidebar = () => {
 
           {/* Nav */}
           <nav className="nav flex-column">
-            <NavLink to="/" className={navClass} onClick={onNavigate()}>
+            <NavLink to="/taytay_dashboard" className={navClass} onClick={onNavigate("/")}>
               <i className="bi bi-house me-2" />
-              {isOpen && "Home"}
+              {isOpen && "Dashboard"}
             </NavLink>
 
-            <NavLink to="/parcel" className={navClass} onClick={onNavigate("/parcel")}>
-              <i className="bi bi-backpack3 me-2" />
-              {isOpen && "Parcel"}
-            </NavLink>
-
-            {/* Projects parent */}
+            {/* ===== Parcels (Dropdown) ===== */}
             <button
               className="nav-link btn btn-link text-start d-flex align-items-center"
-              onClick={() => setSubmenuOpen((s) => !s)}
-              aria-expanded={submenuOpen}
+              onClick={() => setSubmenuOpenParcels((s) => !s)}
+              aria-expanded={submenuOpenParcels}
+              aria-controls="submenu-parcels"
+            >
+              <i className="bi bi-backpack3 me-2" />
+              {isOpen && <span className="flex-grow-1">Parcels</span>}
+              {isOpen && (
+                <i
+                  className={`bi ms-auto ${
+                    submenuOpenParcels ? "bi-caret-up-fill" : "bi-caret-down-fill"
+                  }`}
+                />
+              )}
+            </button>
+
+            <Collapse in={submenuOpenParcels}>
+              <div id="submenu-parcels" className="ms-4">
+            
+
+                <NavLink
+                  to="/taytay"
+                  className={navClass}
+                  onClick={onNavigate("/taytay") /* fixed to match 'to' */}
+                >
+                  {isOpen ? "Taytay" : <i className="bi bi-file-earmark-arrow-up" />}
+                </NavLink>
+
+                <NavLink
+                  to="/map"
+                  className={navClass}
+                  onClick={onNavigate("/map") /* fixed to match 'to' */}
+                >
+                  {isOpen ? "Ibaan" : <i className="bi bi-file-earmark-arrow-up" />}
+                </NavLink>
+
+              </div>
+            </Collapse>
+
+            {/* ===== Web Map Services (NEW dropdown) ===== */}
+            <button
+              className="nav-link btn btn-link text-start d-flex align-items-center"
+              onClick={() => setSubmenuOpenWMS((s) => !s)}
+              aria-expanded={submenuOpenWMS}
+              aria-controls="submenu-wms"
+            >
+              <i className="bi bi-layers me-2" />
+              {isOpen && <span className="flex-grow-1">Web Map Services</span>}
+              {isOpen && (
+                <i
+                  className={`bi ms-auto ${
+                    submenuOpenWMS ? "bi-caret-up-fill" : "bi-caret-down-fill"
+                  }`}
+                />
+              )}
+            </button>
+
+            <Collapse in={submenuOpenWMS}>
+              <div id="submenu-wms" className="ms-4">
+                <NavLink
+                  to="/geoportal"
+                  className={navClass}
+                  onClick={onNavigate("/geoportal")}
+                >
+                  {isOpen ? "Geoportal" : <i className="bi bi-grid" />}
+                </NavLink>
+
+              </div>
+            </Collapse>
+
+            {/* ===== Projects (existing dropdown) ===== */}
+            <button
+              className="nav-link btn btn-link text-start d-flex align-items-center"
+              onClick={() => setSubmenuOpenProjects((s) => !s)}
+              aria-expanded={submenuOpenProjects}
               aria-controls="submenu-projects"
             >
               <i className="bi bi-folder me-2" />
               {isOpen && <span className="flex-grow-1">Projects</span>}
               {isOpen && (
-                <i className={`bi ms-auto ${submenuOpen ? "bi-caret-up-fill" : "bi-caret-down-fill"}`} />
+                <i
+                  className={`bi ms-auto ${
+                    submenuOpenProjects ? "bi-caret-up-fill" : "bi-caret-down-fill"
+                  }`}
+                />
               )}
             </button>
 
-            {/* Projects submenu */}
-            <Collapse in={submenuOpen}>
+            <Collapse in={submenuOpenProjects}>
               <div id="submenu-projects" className="ms-4">
                 <NavLink
                   to="/landparcellist"
                   className={navClass}
                   onClick={onNavigate("/landparcellist")}
                 >
-                  {isOpen && "Land Parcels"}
-                  {!isOpen && <i className="bi bi-geo" />}
+                  {isOpen ? "Land Parcels" : <i className="bi bi-geo" />}
                 </NavLink>
 
                 <NavLink to="/taxlist" className={navClass} onClick={onNavigate("/taxlist")}>
-                  {isOpen && "Tax Forms"}
-                  {!isOpen && <i className="bi bi-receipt" />}
+                  {isOpen ? "Tax Forms" : <i className="bi bi-receipt" />}
                 </NavLink>
 
                 <NavLink
@@ -137,28 +221,19 @@ const Sidebar = () => {
                   className={navClass}
                   onClick={onNavigate("/buildinglist")}
                 >
-                  {isOpen && "Buildings"}
-                  {!isOpen && <i className="bi bi-building" />}
+                  {isOpen ? "Buildings" : <i className="bi bi-building" />}
                 </NavLink>
 
-                {/* ✅ NEW: Survey Returns (placeholder) */}
                 <NavLink
                   to="/surveyreturns"
                   className={navClass}
                   onClick={onNavigate("/surveyreturns")}
                 >
-                  {isOpen && (
-                    <span className="d-flex align-items-center">
-                      Survey Returns
-                    </span>
-                  )}
-                  {!isOpen && <i className="bi bi-journal-text" />}
+                  {isOpen ? "Survey Returns" : <i className="bi bi-journal-text" />}
                 </NavLink>
 
-                {/* Logs */}
                 <NavLink to="/logs" className={navClass} onClick={onNavigate("/logs")}>
-                  {isOpen && "Logs"}
-                  {!isOpen && <i className="bi bi-clipboard-data" />}
+                  {isOpen ? "Logs" : <i className="bi bi-clipboard-data" />}
                 </NavLink>
               </div>
             </Collapse>

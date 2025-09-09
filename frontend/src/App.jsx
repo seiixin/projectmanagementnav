@@ -17,11 +17,9 @@ import TaxList from './components/TaxList/TaxList';
 import SurveyReturns from "./SurveyReturns/SurveyReturns.jsx";
 import Geoportal from './components/Geoportal/Geoportal';
 import GeoportalLogin from "./components/Geoportal/Login/Login.jsx";
-
-// Map deep-link page
+import Taytay from './components/Taytay/Taytay';
+import TaytayDashboard from './components/Taytay/Dashboard.jsx';
 import MapPage from './components/Map/MapPage';
-
-// ✅ Logs page (make sure this file exists and default-exports the component)
 import Logs from './components/logs/logs';
 
 function ProtectedRoute({ children }) {
@@ -78,7 +76,9 @@ export default function App() {
       </Route>
 
       <Route path="geoportal" element={<Geoportal />} />
-      
+      <Route path="taytay" element={<Taytay />} />
+      <Route path="taytay_dashboard" element={<TaytayDashboard />} />
+
       {/* Catch-all */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>

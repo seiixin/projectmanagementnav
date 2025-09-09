@@ -165,30 +165,7 @@ function WMSUI({ onPreview, onAdd }) {
         </div>
       </div>
 
-      <div style={S.card}>
-        <div style={S.cardHead}>
-          <div>Layers (mock)</div>
-          <div style={S.cardSub}>Select one or more layers to include</div>
-        </div>
-
-        {/* This list scrolls inside, preventing growth/overlap */}
-        <div style={S.list}>
-          {mockLayers.map((l) => (
-            <label key={l.name} style={S.listRow}>
-              <input
-                style={S.checkbox}
-                type="checkbox"
-                checked={checked.has(l.name)}
-                onChange={() => toggle(l.name)}
-              />
-              <div style={S.listCol}>
-                <strong style={S.listTitle}>{l.title}</strong>
-                <code style={S.code}>{l.name}</code>
-              </div>
-            </label>
-          ))}
-        </div>
-      </div>
+  
 
       <div style={S.actions}>
         <button style={S.ghost} onClick={() => onPreview?.(payload)}>

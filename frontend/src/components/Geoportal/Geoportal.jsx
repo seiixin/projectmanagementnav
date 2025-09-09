@@ -1,6 +1,7 @@
 // src/components/Geoportal.jsx
 import React, { useMemo, useState } from "react";
 import L from "leaflet";
+import { TAYTAY_PARCELS } from "./taytayParcels"; // ← adjust path if needed
 import {
   MapContainer,
   TileLayer,
@@ -13,6 +14,8 @@ import {
   Circle,
   Marker,
   Tooltip,
+  GeoJSON,
+  Pane,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -21,13 +24,99 @@ import Topbar from "./Includes/Topbar";
 import Footer from "./Includes/Footer";
 import Legend from "./Includes/Legend";
 import DataSourcesUI from "./Includes/DataSourcesUI";
-import SelectedLayersManager from "./Includes/SelectedLayersManager"; // ✅ NEW
+import SelectedLayersManager from "./Includes/SelectedLayersManager";
+
+/* ===============================
+   ✅ Small, crisp in-app marker (used by search & ruler)
+================================= */
+const parcelDivIcon = L.divIcon({
+  className: "parcel-marker",
+  html: `
+    <div style="
+      width:28px;height:28px;border-radius:50%;
+      background:#a855f7; box-shadow:0 0 0 2px white, 0 2px 8px rgba(0,0,0,.4);
+      display:grid;place-items:center; color:white; font-weight:700; font-size:14px;
+    ">
+      •
+    </div>
+  `,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  popupAnchor: [0, -14],
+});
+
+/* ===============================
+   ✅ Tooltip HTML builder (exact fields requested)
+================================= */
+function parcelTooltipHTML(p = {}) {
+  const fields = [
+    "ID","ParcelId","LotNumber","BlockNumbe","SurveyPlan","Claimant",
+    "BarangayNa","Area"
+  ];
+
+  const pretty = (v) =>
+    v === null || v === undefined || v === "" ? `<span style="opacity:.55">—</span>` : String(v);
+
+  const rows = fields
+    .map((k, i) => {
+      const val = p[k];
+      const bg = i % 2 ? "#f9fafb" : "#ffffff"; // zebra rows
+      return `
+        <tr style="background:${bg}">
+          <td style="
+            padding:8px 12px;
+            font-weight:600;
+            background:${bg};
+            border-bottom:1px solid #e5e7eb;
+            border-right:1px solid #e5e7eb;
+            width:40%;
+            color:#1e293b;
+          ">
+            ${k}
+          </td>
+          <td style="
+            padding:8px 12px;
+            border-bottom:1px solid #e5e7eb;
+            color:#111827;
+            font-weight:400;
+          ">
+            ${pretty(val)}
+          </td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  return `
+    <div style="max-width:520px;font:14px/1.5 system-ui;color:green">
+      <div style="
+        font-weight:700;
+        margin-bottom:10px;
+        font-size:18px;
+        color:#6b21a8;
+      ">
+        📍 Taytay Parcel ${p?.LotNumber ? `• ${p.LotNumber}` : ""}
+      </div>
+      <div style="
+        border:1px solid #e5e7eb;
+        border-radius:12px;
+        overflow:hidden;
+        background:green;
+        box-shadow:0 8px 20px rgba(0,0,0,.15);
+      ">
+        <table style="border-collapse:collapse;width:100%">${rows}</table>
+      </div>
+    </div>
+  `;
+}
+
 
 export default function Geoportal() {
-  const [selected, setSelected] = useState(new Set());
-  const [layerOrder, setLayerOrder] = useState([]);         // ✅ maintain visual order
-  const [layerOpacity, setLayerOpacity] = useState({});     // ✅ per-layer opacity
-  const [basemapOpacity, setBasemapOpacity] = useState(1);  // ✅ basemap opacity
+  // ✅ Preselect Taytay Parcels so it renders
+  const [selected, setSelected] = useState(new Set(["taytay_parcel_main"]));
+  const [layerOrder, setLayerOrder] = useState(["taytay_parcel_main"]);
+  const [layerOpacity, setLayerOpacity] = useState({ taytay_parcel_main: 0.8 });
+  const [basemapOpacity, setBasemapOpacity] = useState(1);
   const [activeBase, setActiveBase] = useState("osm-standard");
 
   const [activeTool, setActiveTool] = useState("none"); // "none" | "query" | "ruler" | "buffer"
@@ -36,7 +125,7 @@ export default function Geoportal() {
 
   const phBounds = useMemo(
     () => [
-      [8.0, 116.7],  // SW
+      [8.0, 116.7], // SW
       [19.5, 130.6], // NE
     ],
     []
@@ -45,55 +134,41 @@ export default function Geoportal() {
   const layerRegistry = useMemo(() => createLayerRegistry(), []);
   const basemapRegistry = useMemo(() => createBasemapRegistry(), []);
 
+  // ✅ Compute Taytay bounds once (for auto-zoom on toggle)
+  const taytayBounds = useMemo(() => geojsonToBounds(TAYTAY_PARCELS), []);
+
   const legendItems = useMemo(
     () => [
-      { id: "building-info",        title: "Building Information",     color: "#f59e0b" },
-      { id: "building-footprints",  title: "Building Footprints",      color: "#fbbf24" },
-      { id: "roads",                title: "Road Network",             color: "#ef4444" },
-      { id: "water-bodies",         title: "Water Bodies",             color: "#3b82f6" },
-      { id: "dams",                 title: "Dam",                      color: "#60a5fa" },
-      { id: "service-area",         title: "Irrigation Service Area",  color: "#93c5fd" },
-      { id: "clup",                 title: "Municipal CLUP",           color: "#22c55e" },
-      { id: "ecan",                 title: "ECAN Zone",                color: "#16a34a" },
-      { id: "land-cover",           title: "Land Cover",               color: "#0ea5e9" },
-      { id: "bswm-soil",            title: "BSWM (Soil Map)",          color: "#a855f7" },
-      { id: "agri-registered",      title: "Agriculture: Registered",  color: "#84cc16" },
-      { id: "agri-unregistered",    title: "Agriculture: Not Registered", color: "#bef264" },
-      { id: "noah-earthquake",      title: "Earthquake (NOAH)",        color: "#f43f5e" },
-      { id: "noah-flood",           title: "Flood (NOAH)",             color: "#06b6d4" },
-      { id: "noah-volcanic",        title: "Volcanic (NOAH)",          color: "#fb7185" },
-      { id: "noah-landslide",       title: "Landslide (NOAH)",         color: "#ea580c" },
-      { id: "orthophoto",           title: "Orthophotography",         color: "#94a3b8" },
-      { id: "topo-20k",             title: "Topographic (1:20,000)",   color: "#64748b" },
+      { id: "ecan", title: "ECAN", color: "#0ea5e9", kind: "fill" },
+      { id: "hospitals", title: "Hospitals & Health Facilities", color: "#ef4444", kind: "point" },
+      { id: "lc2020_palawan", title: "2020 Land Cover Map of Palawan", color: "#22c55e", kind: "fill" },
+      { id: "flood_10k_susc", title: "Flood 1:10,000 Susceptibility", color: "#f59e0b", kind: "fill" },
+      { id: "roads", title: "Roads", color: "#94a3b8", kind: "line" },
+      { id: "taytay_parcel_main", title: "Taytay Parcel", color: "#a855f7", kind: "line" },
+      { id: "building_info_main", title: "Bldg. Information/Footprints", color: "#7dd3fc", kind: "point" },
     ],
     []
   );
 
-  // Keep Set for membership, and a separate array for rendering order.
   function toggleLayer(id) {
-    setSelected(prev => {
+    setSelected((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
-        setLayerOrder(o => o.filter(x => x !== id));
+        setLayerOrder((o) => o.filter((x) => x !== id));
       } else {
         next.add(id);
-        setLayerOrder(o => (o.includes(id) ? o : [...o, id]));
-        setLayerOpacity(op => (id in op ? op : { ...op, [id]: 0.8 })); // default opacity
+        setLayerOrder((o) => (o.includes(id) ? o : [...o, id]));
+        setLayerOpacity((op) => (id in op ? op : { ...op, [id]: 0.8 }));
       }
       return next;
     });
   }
 
-  // Rendered list follows layerOrder but only those still selected:
-  const selectedIds = useMemo(
-    () => layerOrder.filter(id => selected.has(id)),
-    [layerOrder, selected]
-  );
+  const selectedIds = useMemo(() => layerOrder.filter((id) => selected.has(id)), [layerOrder, selected]);
 
-  // Move a layer up/down in order
   function moveLayer(id, dir) {
-    setLayerOrder(prev => {
+    setLayerOrder((prev) => {
       const idx = prev.indexOf(id);
       if (idx < 0) return prev;
       const arr = [...prev];
@@ -104,15 +179,13 @@ export default function Geoportal() {
     });
   }
 
-  // Remove a layer (equivalent to toggling off)
   function removeLayer(id) {
     if (!selected.has(id)) return;
     toggleLayer(id);
   }
 
-  // Change opacity for one layer
   function setOpacity(id, value) {
-    setLayerOpacity(prev => ({ ...prev, [id]: value }));
+    setLayerOpacity((prev) => ({ ...prev, [id]: value }));
   }
 
   const basemapOptions = [
@@ -140,11 +213,10 @@ export default function Geoportal() {
           onChangeBufferRadius={setBufferRadius}
           onPrint={() => window.print()}
         />
-        {/* ✅ NEW: Selected Layers Manager (UI + real wiring) */}
         <SelectedLayersManager
           items={selectedIds.map((id) => ({
             id,
-            title: legendItems.find(x => x.id === id)?.title || id,
+            title: legendItems.find((x) => x.id === id)?.title || id,
             opacity: layerOpacity[id] ?? 0.8,
           }))}
           onMoveUp={(id) => moveLayer(id, "up")}
@@ -153,7 +225,7 @@ export default function Geoportal() {
           onRemove={(id) => removeLayer(id)}
           basemapOpacity={basemapOpacity}
           onBasemapOpacity={setBasemapOpacity}
-          activeBaseTitle={basemapOptions.find(b => b.id === activeBase)?.title || activeBase}
+          activeBaseTitle={basemapOptions.find((b) => b.id === activeBase)?.title || activeBase}
         />
       </div>
 
@@ -179,30 +251,43 @@ export default function Geoportal() {
             <FitPHOnMount bounds={phBounds} padding={[24, 24]} />
             <RefitOnSidebar trigger={sidebarOpen} bounds={phBounds} padding={[24, 24]} />
 
-            {/* Basemap with adjustable opacity */}
-            {React.cloneElement(basemapRegistry[activeBase], {
-              opacity: basemapOpacity,
-            })}
+            {/* ✅ Search box */}
+            <SearchLocationControl />
 
-            {/* Overlays respecting order + opacity + zIndex */}
+            {/* ✅ Auto-zoom when Taytay parcels turn on */}
+            <FitToBoundsOnToggle
+              watchId="taytay_parcel_main"
+              enabled={selected.has("taytay_parcel_main")}
+              bounds={taytayBounds}
+            />
+
+            {/* ✅ Vector pane above tiles */}
+            <Pane name="pane-parcels" style={{ zIndex: 650 }} />
+            {/* Markers (search/ruler) pane (above parcels) */}
+            <Pane name="pane-parcel-markers" style={{ zIndex: 700 }} />
+
+            {/* Basemap with adjustable opacity */}
+            {React.cloneElement(basemapRegistry[activeBase], { opacity: basemapOpacity })}
+
+            {/* Overlays respecting order + opacity */}
             {selectedIds.map((id, index) => {
               const node = layerRegistry[id];
               if (!node) return null;
               const opacity = layerOpacity[id] ?? 0.8;
-              const zIndex = 400 + index; // stack in order
+              const zIndex = 400 + index;
               return React.cloneElement(node, { key: id, opacity, zIndex });
             })}
 
             {/* Tools */}
             <ToolQuery enabled={activeTool === "query"} />
-            <ToolRuler enabled={activeTool === "ruler"} />
+            <ToolRuler enabled={activeTool === "ruler"} icon={parcelDivIcon} />
             <ToolBuffer enabled={activeTool === "buffer"} radius={bufferRadius} />
 
             <ScaleControl position="bottomleft" />
             <ZoomControl position="bottomright" />
           </MapContainer>
 
-          {/* Legend (read-only) */}
+          {/* Legend */}
           <Legend items={legendItems} activeIds={selectedIds} />
         </div>
 
@@ -237,6 +322,223 @@ function RefitOnSidebar({ trigger, bounds, padding = [20, 20] }) {
   return null;
 }
 
+/** Auto-fit helper when a layer becomes enabled */
+function FitToBoundsOnToggle({ watchId, enabled, bounds, padding = [24, 24] }) {
+  const map = useMap();
+  const didFitRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!enabled || !bounds) return;
+    if (didFitRef.current) return; // only first enable
+    didFitRef.current = true;
+    const t = setTimeout(() => {
+      try {
+        map.fitBounds(bounds, { padding });
+      } catch {}
+    }, 60);
+    return () => clearTimeout(t);
+  }, [map, enabled, bounds, padding, watchId]);
+  React.useEffect(() => {
+    if (!enabled) didFitRef.current = false;
+  }, [enabled]);
+  return null;
+}
+
+/** Compute bounds of a (Multi)Polygon GeoJSON (lon/lat to Leaflet lat/lng) */
+function geojsonToBounds(geojson) {
+  const b = L.latLngBounds();
+  const push = (lng, lat) => b.extend([lat, lng]); // Leaflet expects [lat, lng]
+  (geojson.features || []).forEach((f) => {
+    const g = f.geometry;
+    if (!g) return;
+    if (g.type === "Polygon") {
+      g.coordinates.forEach((ring) => ring.forEach(([lng, lat]) => push(lng, lat)));
+    } else if (g.type === "MultiPolygon") {
+      g.coordinates.forEach((poly) => poly.forEach((ring) => ring.forEach(([lng, lat]) => push(lng, lat))));
+    }
+  });
+  return b.isValid() ? b : null;
+}
+
+/** Search box using OpenStreetMap Nominatim (no extra packages) */
+function SearchLocationControl() {
+  const map = useMap();
+  const [q, setQ] = React.useState("");
+  const [hits, setHits] = React.useState([]);
+  const [open, setOpen] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [chosen, setChosen] = React.useState(null); // {lat, lon, name}
+
+  const boxRef = React.useRef(null);
+  const abortRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const onDoc = (e) => {
+      if (!boxRef.current) return;
+      if (!boxRef.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("click", onDoc);
+    return () => document.removeEventListener("click", onDoc);
+  }, []);
+
+  async function runSearch(text) {
+    if (!text || text.trim().length < 2) {
+      setHits([]);
+      return;
+    }
+    try {
+      if (abortRef.current) abortRef.current.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setLoading(true);
+      const url = new URL("https://nominatim.openstreetmap.org/search");
+      url.searchParams.set("q", text);
+      url.searchParams.set("format", "jsonv2");
+      url.searchParams.set("addressdetails", "1");
+      url.searchParams.set("limit", "8");
+      url.searchParams.set("countrycodes", "ph"); // remove for global
+      const res = await fetch(url.toString(), {
+        signal: controller.signal,
+        headers: { "Accept-Language": "en" },
+      });
+      if (!res.ok) throw new Error("search failed");
+      const data = await res.json();
+      setHits(Array.isArray(data) ? data : []);
+    } catch (e) {
+      if (e.name !== "AbortError") {
+        console.error(e);
+        setHits([]);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  React.useEffect(() => {
+    const t = setTimeout(() => runSearch(q), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  function choose(hit) {
+    const lat = parseFloat(hit.lat);
+    const lon = parseFloat(hit.lon);
+    const name = hit.display_name;
+    setChosen({ lat, lon, name });
+    setOpen(false);
+    setQ(name);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      map.flyTo([lat, lon], 16, { duration: 0.8 });
+    }
+  }
+
+  return (
+    <>
+      {/* UI overlay */}
+      <div
+        ref={boxRef}
+        style={{
+          position: "absolute",
+          top: 12,
+          left: 12,
+          zIndex: 1000,
+          width: 340,
+          maxWidth: "calc(100vw - 24px)",
+          boxShadow: "0 8px 24px rgba(0,0,0,.35)",
+          borderRadius: 12,
+          overflow: "hidden",
+          background: "rgba(20,24,40,.9)",
+          backdropFilter: "blur(6px)",
+          border: "1px solid rgba(255,255,255,.08)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: "flex", alignItems: "center", padding: "8px 10px", gap: 8 }}>
+          <input
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            placeholder="Search place, barangay, city…"
+            style={{
+              flex: 1,
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,.12)",
+              background: "rgba(12,16,28,.9)",
+              color: "white",
+              font: "14px/1.2 system-ui",
+              outline: "none",
+            }}
+          />
+          <button
+            onClick={() => runSearch(q)}
+            title="Search"
+            style={{
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid rgba(255,255,255,.12)",
+              background: "rgba(12,16,28,.9)",
+              color: "white",
+              font: "14px/1.2 system-ui",
+              cursor: "pointer",
+            }}
+          >
+            Search
+          </button>
+        </div>
+
+        {open && (loading || hits.length > 0) && (
+          <div
+            style={{
+              maxHeight: 320,
+              overflow: "auto",
+              borderTop: "1px solid rgba(255,255,255,.06)",
+              background: "rgba(14,18,32,.95)",
+            }}
+          >
+            {loading && (
+              <div style={{ padding: 12, color: "#9ca3af", font: "13px/1.3 system-ui" }}>Searching…</div>
+            )}
+            {!loading &&
+              hits.map((h) => (
+                <div
+                  key={h.place_id}
+                  onClick={() => choose(h)}
+                  style={{
+                    padding: "10px 12px",
+                    cursor: "pointer",
+                    color: "white",
+                    font: "13px/1.35 system-ui",
+                    borderBottom: "1px solid rgba(255,255,255,.05)",
+                    display: "flex",
+                    gap: 8,
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                >
+                  <div style={{ opacity: 0.95, whiteSpace: "nowrap" }}>Result</div>
+                  <div style={{ opacity: 0.95, overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {h.display_name}
+                  </div>
+                </div>
+              ))}
+            {!loading && hits.length === 0 && q.trim().length >= 2 && (
+              <div style={{ padding: 12, color: "#9ca3af", font: "13px/1.3 system-ui" }}>No results</div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Marker on chosen search result */}
+      {chosen && (
+        <Marker position={[chosen.lat, chosen.lon]} icon={parcelDivIcon} pane="pane-parcel-markers">
+          <Tooltip permanent offset={[0, -12]}>{chosen.name}</Tooltip>
+        </Marker>
+      )}
+    </>
+  );
+}
+
 /** Query tool */
 function ToolQuery({ enabled }) {
   const map = useMap();
@@ -261,7 +563,7 @@ function ToolQuery({ enabled }) {
 }
 
 /** Ruler tool */
-function ToolRuler({ enabled }) {
+function ToolRuler({ enabled, icon }) {
   const [pts, setPts] = React.useState([]);
   const map = useMap();
 
@@ -287,9 +589,7 @@ function ToolRuler({ enabled }) {
   const totalMeters = React.useMemo(() => {
     if (pts.length < 2) return 0;
     let m = 0;
-    for (let i = 1; i < pts.length; i++) {
-      m += map.distance(pts[i - 1], pts[i]);
-    }
+    for (let i = 1; i < pts.length; i++) m += map.distance(pts[i - 1], pts[i]);
     return m;
   }, [pts, map]);
 
@@ -297,9 +597,9 @@ function ToolRuler({ enabled }) {
 
   return (
     <>
-      {pts.length > 0 && <Polyline positions={pts} pathOptions={{ weight: 3 }} />}
+      {pts.length > 0 && <Polyline positions={pts} pathOptions={{ weight: 4 }} />}
       {pts.map((p, i) => (
-        <Marker key={i} position={p}>
+        <Marker key={i} position={p} icon={icon} pane="pane-parcel-markers">
           <Tooltip permanent offset={[0, -12]}>
             {i === pts.length - 1
               ? totalMeters > 1000
@@ -355,26 +655,98 @@ const styles = {
   },
 };
 
-/** Overlay registry (replace with your services) */
+/** Overlay registry:
+ *  - Click a parcel polygon → show tooltip (with only the requested fields)
+ */
 function createLayerRegistry() {
   const format = "image/png";
   const transparent = true;
+
+  // ✅ Readable parcel style
+  const taytayStyle = {
+    color: "#a855f7",
+    weight: 3,
+    opacity: 1,
+    fillColor: "#111",
+   
+  };
+
+  const taytayData = TAYTAY_PARCELS;
+
+  const onEachTaytayFeature = (feature, layer) => {
+    const props = feature?.properties || {};
+
+    const attach = (lyr) => {
+      try {
+        lyr.setStyle?.({ weight: 3, fillOpacity: 0.20, color: "#a855f7", fillColor: "#a855f7" });
+      } catch {}
+      lyr.on?.({
+        mouseover: (e) => {
+          e.target.setStyle({ weight: 5, fillOpacity: 0.32 });
+          try { e.target.bringToFront(); } catch {}
+        },
+        mouseout: (e) => e.target.setStyle({ weight: 3, fillOpacity: 0.20 }),
+        click: (e) => {
+          // Where to show the tooltip: polygon center (fallback to click)
+          let at = null;
+          try { at = e.target.getBounds?.().getCenter?.(); } catch {}
+          if (!at) at = e.latlng;
+
+          const html = parcelTooltipHTML(props);
+
+          // Re-bind fresh tooltip and open it
+          try { e.target.unbindTooltip(); } catch {}
+          e.target.bindTooltip(html, {
+            direction: "top",
+            sticky: true,
+            opacity: 1,
+            className: "parcel-tooltip",
+          });
+          try { e.target.openTooltip(at); } catch {}
+        },
+      });
+    };
+
+    if (typeof layer.eachLayer === "function") {
+      layer.eachLayer((child) => attach(child));
+    } else {
+      attach(layer);
+    }
+
+    // pointer cursor
+    try {
+      const paneEl = layer.getPane?.() || layer._path?.parentElement;
+      if (paneEl && paneEl.style) paneEl.style.cursor = "pointer";
+    } catch {}
+  };
+
   return {
-    "building-info": (
+    taytay_parcel_main: (
+      <GeoJSON
+        data={taytayData}
+        style={() => taytayStyle}
+        onEachFeature={onEachTaytayFeature}
+        pane="pane-parcels"
+        interactive={true}
+        bubblingMouseEvents={true}
+      />
+    ),
+
+    // (Optional) WMS placeholders
+    building_info_main: (
       <WMSTileLayer
         url="https://demo.geo-solutions.it/geoserver/wms"
         params={{ layers: "topp:states", format, transparent }}
         opacity={0.9}
       />
     ),
-    "building-footprints": (
+    building_footprints: (
       <WMSTileLayer
         url="https://demo.geo-solutions.it/geoserver/wms"
         params={{ layers: "nurc:Img_Sample", format, transparent }}
         opacity={0.7}
       />
     ),
-    // Add more overlays here, ids must match the legend + sidebar
   };
 }
 

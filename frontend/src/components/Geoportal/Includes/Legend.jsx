@@ -1,15 +1,7 @@
 // src/components/Geoportal/Includes/Legend.jsx
 import React from "react";
 
-/**
- * Legend (Deluxe, positionable)
- * Props:
- *   items: Array<{ id: string, title: string, color: string, kind?: 'fill'|'line'|'point' }>
- *   activeIds: string[] | Set<string>
- *   defaultCompact?: boolean
- *   position?: 'topright' | 'topleft' | 'bottomright' | 'bottomleft'   (default: 'topright')
- *   offset?: [number, number]   // [x, y] px from the chosen corner (default: [12, 12])
- */
+
 export default function Legend({
   items = [],
   activeIds = [],

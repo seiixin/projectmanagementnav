@@ -18,17 +18,12 @@ export default function Topbar({
       >
         {sidebarOpen ? "⟨" : "⟩"}
       </button>
-
       <div style={S.brand}>🌍 GeoPortal</div>
       <div style={{ flex: 1 }} />
 
       <button style={S.btnGhost} onClick={onManageLayers}>Manage Selected Layers</button>
       <button style={S.btnGhost} onClick={onPrint}>Print Map</button>
 
-      {/* ✅ NEW FAQ button */}
-      <button style={S.btnGhost} onClick={onOpenFAQ}>FAQ</button>
-
-      <button style={S.btn} onClick={onClear}>Clear Layers</button>
     </header>
   );
 }
